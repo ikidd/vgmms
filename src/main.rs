@@ -2,7 +2,7 @@
 
 use vgtk::ext::*;
 use vgtk::lib::gio::{ApplicationFlags};
-use vgtk::lib::gtk::*;
+use vgtk::lib::gtk::{*, Box as GtkBox};
 use vgtk::{gtk, run, Component, UpdateAction, VNode, Callback};
 
 use vgtk::lib::gdk_pixbuf::Pixbuf;
@@ -10,6 +10,7 @@ use vgtk::lib::gdk_pixbuf::Pixbuf;
 use std::default::Default;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
+use std::boxed::Box;
 
 use std::ffi::OsString;
 
@@ -110,7 +111,7 @@ struct Chat {
 	numbers: Vec<Number>,
 }
 
-impl Chat {	
+impl Chat {
 }
 
 #[derive(Clone, Debug)]
@@ -172,13 +173,13 @@ impl Component for Model {
 		gtk! {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
 				<Window default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessageTriv::Exit>
-					<Box::new(Orientation::Vertical, 0)>
-						<Notebook Box::expand=true>
+					<GtkBox::new(Orientation::Vertical, 0)>
+						<Notebook GtkBox::expand=true>
 							{
 								self.state.read().unwrap().chats.iter().map(|(_, c)| gtk! {<@ChatModel chat=c />})
 							}
 						</Notebook>
-					</Box>
+					</GtkBox>
 				</Window>
 			</Application>
 		}
@@ -192,6 +193,48 @@ fn main() {
 
 
 
+#[derive(Clone, Debug, Default)]
+struct FileChooser {
+	on_choose: Callback<Vec<PathBuf>>
+}
+
+#[derive(Clone, Debug)]
+enum UiMessageFileChooser {
+	Choose(Vec<PathBuf>),
+	Nop,
+}
+
+impl Component for FileChooser {
+	type Message = UiMessageFileChooser;
+	type Properties = Self;
+
+	fn create(props: Self) -> Self {
+		props
+	}
+
+	fn change(&mut self, props: Self) -> UpdateAction<Self> {
+		*self = props;
+		UpdateAction::Render
+	}
+
+	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
+		if let UiMessageFileChooser::Choose(fns) = msg {
+			self.on_choose.send(fns);
+		}
+		UpdateAction::None
+	}
+
+	fn view(&self) -> VNode<Self> {
+		gtk! {
+			<FileChooserDialog::with_buttons(Some("Select attachment"), None::<&gtk::Window>,
+				FileChooserAction::Open,
+				&[("_Cancel", ResponseType::Cancel), ("_Open", ResponseType::Accept)])
+				on realize=|chooser| {chooser.set_select_multiple(true); UiMessageFileChooser::Nop}
+				on response=|chooser, _resp| UiMessageFileChooser::Choose(chooser.get_filenames())
+			/>
+		}
+	}
+}
 
 #[derive(Clone, Default)]
 struct InputBoxModel {
@@ -204,11 +247,27 @@ struct InputBoxModel {
 enum UiMessageInputBox {
 	Send,
 	TextChanged(String),
+	ToggleFile,
 	AskForFile,
 	AddFile(PathBuf),
+	SetFiles(Vec<PathBuf>),
 	ClearFiles,
 	Clear,
 	Nop,
+}
+
+fn once<A, F: FnOnce(A)>(f: F) -> impl Fn(A) {
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    let f = Rc::new(Cell::new(Some(f)));
+    move |value| {
+        if let Some(f) = f.take() {
+            f(value);
+        } else {
+            panic!("vgtk::once() function called twice 😒");
+        }
+    }
 }
 
 impl Component for InputBoxModel {
@@ -224,8 +283,11 @@ impl Component for InputBoxModel {
 		UpdateAction::Render
 	}
 
-	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
+	fn update(&mut self, mut msg: Self::Message) -> UpdateAction<Self> {
 		use UiMessageInputBox::*;
+		if let ToggleFile = msg {
+			msg = if self.file_paths.len() == 0 { UiMessageInputBox::AskForFile } else { UiMessageInputBox::Clear };
+		}
 		match msg {
 			Send => {
 				let mut items = vec![];
@@ -253,12 +315,32 @@ impl Component for InputBoxModel {
 				UpdateAction::None
 			},
 			AskForFile => {
-				//TODO
-				self.file_paths.push("/tmp/test.png".into());
-				UpdateAction::Render
+				let (notify, fns_result) = futures::channel::oneshot::channel();
+
+				let fut = vgtk::run_dialog_props::<FileChooser>(vgtk::current_window().as_ref(),
+					FileChooser {
+						on_choose: {let cb: Callback<Vec<PathBuf>> = Box::new(once(move |filenames| {
+							let _ = notify.send(filenames);
+						})).into(); cb},
+					});
+
+				let fut = async move {
+					if let Ok(ResponseType::Accept) = fut.await {
+						let filenames = fns_result.await.unwrap();
+						SetFiles(filenames)
+					} else {
+						Nop
+					}
+				};
+
+				UpdateAction::Defer(Box::pin(fut))
 			}
 			AddFile(path) => {
 				self.file_paths.push(path);
+				UpdateAction::Render
+			},
+			SetFiles(paths) => {
+				self.file_paths = paths;
 				UpdateAction::Render
 			},
 			ClearFiles => {
@@ -267,24 +349,30 @@ impl Component for InputBoxModel {
 			},
 			Clear => {
 				self.file_paths.clear();
-				//self.message.clear();
+				self.message.clear();
 				UpdateAction::Render
 			},
-			Nop => {
+			_ => {
 				UpdateAction::None
 			},
 		}
 	}
 
 	fn view(&self) -> VNode<Self> {
+		let files_empty = self.file_paths.len() == 0;
 		gtk! {
-			<Box::new(Orientation::Horizontal, 0)>
-				<Button label="" image="mail-attachment" always_show_image=true
+			<GtkBox::new(Orientation::Horizontal, 0)>
+				/*<Button label="" image="mail-attachment" always_show_image=true
 					on clicked=|_entry| UiMessageInputBox::AskForFile
-				/>
+				/>*/
+				/*<Button label="" image="edit-clear" /*visible={self.file_paths.len() > 0}*/ always_show_image=true
+					on clicked=|_entry| UiMessageInputBox::ClearFiles
+				/>*/
 				<Entry
 					text=self.message.clone()
-					Box::expand=true
+					GtkBox::expand=true
+					property_secondary_icon_name={if files_empty { "mail-attachment" } else { "edit-clear" }}
+					on icon_press=|_entry, _pos, _ev| UiMessageInputBox::ToggleFile
 					on realize=|entry| { entry.grab_focus(); UiMessageInputBox::Nop }
 					on changed=|entry| {
 						let text = entry.get_text().map(|x| x.to_string()).unwrap_or_default();
@@ -295,7 +383,7 @@ impl Component for InputBoxModel {
 				<Button label="" image="go-next" always_show_image=true
 					on clicked=|_| UiMessageInputBox::Send
 				/>
-			</Box>
+			</GtkBox>
 		}
 	}
 }
@@ -335,23 +423,26 @@ impl ChatModel {
 						if true /*mime_type_is_image(att.mime_type)*/ {
 							if let AttachmentData::FilePath(ref path) = att.data {
 								/*gtk! { <Image file=path /> }*/
-						        let pixbuf = Pixbuf::new_from_file_at_size(path, 200, 200).ok();
-								gtk! { <Image pixbuf=pixbuf halign=halign /> }
+								if let Ok(pixbuf) = Pixbuf::new_from_file_at_size(path, 200, 200) {
+									gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> }
+								} else {
+									gtk! { <Label label="unloadable image" xalign=align /> }
+								}
 							} else {
-								gtk! { <Label label="image data not found" /> }
+								gtk! { <Label label="image data not found" xalign=align /> }
 							}
 						} else {
 							let text = format!("attachment of type {}", att.mime_type);
-							gtk! { <Label label=text /> }
+							gtk! { <Label label=text xalign=align /> }
 						}
 					},
 				}
 			});
 			Some(gtk! {
 				<ListBoxRow>
-					<Box::new(Orientation::Vertical, 0)>
+					<GtkBox::new(Orientation::Vertical, 0)>
 						{widget_content}
-					</Box>
+					</GtkBox>
 				</ListBoxRow>
 			})
 		})
@@ -375,6 +466,9 @@ impl Component for ChatModel {
 				UpdateAction::Render
 			},
 			Send(draft_items) => {
+				if draft_items.len() == 0 {
+					return UpdateAction::None
+				}
 				let items = {
 					let mut state = self.state.write().unwrap();
 					draft_items.into_iter().map(|item| match item {
@@ -405,7 +499,7 @@ impl Component for ChatModel {
 				let fut = async move {
 					NewMessage(id)
 				};
-				UpdateAction::Defer(std::boxed::Box::pin(fut))
+				UpdateAction::Defer(Box::pin(fut))
 			},
 			AskDelete(_msg_id) => {
 				UpdateAction::None
@@ -422,8 +516,8 @@ impl Component for ChatModel {
 	fn view(&self) -> VNode<ChatModel> {
 		let state = self.state.read().unwrap();
 		gtk! {
-			<Box::new(Orientation::Vertical, 0)>
-				<ScrolledWindow Box::expand=true>
+			<GtkBox::new(Orientation::Vertical, 0)>
+				<ScrolledWindow GtkBox::expand=true>
 					<ListBox> //TODO: TreeView
 					{self.generate_log_widgets(&*state)}
 					</ListBox>
@@ -431,7 +525,7 @@ impl Component for ChatModel {
 				<@InputBoxModel
 					on send=|draft| UiMessageChat::Send(draft)
 				/>
-			</Box>
+			</GtkBox>
 		}
 	}
 }

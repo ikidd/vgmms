@@ -1,11 +1,14 @@
 #![recursion_limit="512"]
 
 use vgtk::ext::*;
-use vgtk::lib::gio::ApplicationFlags;
+use vgtk::lib::gio::{ApplicationFlags};
 use vgtk::lib::gtk::*;
 use vgtk::{gtk, run, Component, UpdateAction, VNode};
 
+use vgtk::lib::gdk_pixbuf::Pixbuf;
+
 use std::default::Default;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -35,13 +38,19 @@ enum UiMessageTriv {
 	Exit,
 }
 
+enum AttachmentData {
+	Inline(Vec<u8>),
+	FilePath(PathBuf),
+}
+
 /**
-  attachments are owned by the message that contains them
+  attachments are owned by the message that contains them. attachments on disk
 */
 struct Attachment {
 	filename: Vec<u8>,
-	mimetype: Vec<u8>,
-	contents: Vec<u8>,
+	mime_type: String,
+	size: u64,
+	data: AttachmentData,
 }
 
 type AttachmentId = usize;
@@ -50,7 +59,7 @@ type MessageId = usize;
 #[derive(Clone, Debug)]
 enum MessageItem {
 	Text(String),
-	AttachmentId(usize),
+	Attachment(AttachmentId),
 }
 
 #[derive(Clone, Debug)]
@@ -60,10 +69,20 @@ struct Contact {
 }
 
 #[derive(Clone, Debug)]
+enum MessageStatus {
+	Received,
+	Draft,
+	Sending,
+	Sent,
+	Failed,
+}
+
+#[derive(Clone, Debug)]
 struct MessageInfo {
 	sender: Number,
 	time: u64,
 	contents: Vec<MessageItem>,
+	status: MessageStatus,
 }
 
 struct MessageTarget {
@@ -171,6 +190,42 @@ enum UiMessageChat {
 	Nop,
 }
 
+impl ChatModel {
+	fn generate_log_widgets<'a>(&'a self, state: &'a VgmmsState) -> impl Iterator<Item=VNode<Self>> + 'a {
+		self.chat_log.iter().filter_map(move |id| {
+			let msg = state.messages.get(id)?;
+			let widget_content = msg.contents.iter().map(|item| {
+				match item {
+					MessageItem::Text(ref t) => {
+						let text = format!("[{}] {}: {}", msg.time, msg.sender.num, t);
+						gtk! { <Label label=text line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=0.0 /> }
+					},
+					MessageItem::Attachment(ref id) => {
+						let att = state.attachments.get(id).expect("attachment not found!");
+						if true /*mime_type_is_image(att.mime_type)*/ {
+							if let AttachmentData::FilePath(ref path) = att.data {
+								/*gtk! { <Image file=path /> }*/
+						        let pixbuf = Pixbuf::new_from_file(path).ok();
+								gtk! { <Image pixbuf=pixbuf /> }
+							} else {
+								gtk! { <Label label="image data not found" /> }
+							}
+						} else {
+							let text = format!("attachment of type {}", att.mime_type);
+							gtk! { <Label label=text /> }
+						}
+					},
+				}
+			});
+			Some(gtk! {
+				<ListBoxRow>
+				{widget_content}
+				</ListBoxRow>
+			})
+		})
+	}
+}
+
 impl Component for ChatModel {
 	type Message = UiMessageChat;
 	type Properties = ();
@@ -191,6 +246,7 @@ impl Component for ChatModel {
 						sender: num,
 						time: 0,
 						contents: items,
+						status: MessageStatus::Sending,
 					});
 					state.next_message_id += 1;
 					id
@@ -204,7 +260,7 @@ impl Component for ChatModel {
 				UpdateAction::None
 			},
 			Delete(_msg_id) => {
-				UpdateAction::None
+				UpdateAction::Render
 			},
 			Nop => {
 				UpdateAction::None
@@ -218,30 +274,23 @@ impl Component for ChatModel {
 			<Box::new(Orientation::Vertical, 0)>
 				<ScrolledWindow Box::expand=true>
 					<ListBox> //TODO: TreeView
-						{ self.chat_log.iter().filter_map(|id| {
-							let msg = state.messages.get(id)?;
-							let contents: String = match msg.contents.iter().next() {
-								Some(&MessageItem::Text(ref t)) => t.into(),
-								_ => "other".into(),
-							};
-							let text = format!("[{}] {}: {}", msg.time, msg.sender.num, contents);
-							Some(gtk! {
-								<ListBoxRow>
-								<Label label=text line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=0.0 />
-								</ListBoxRow>
-							})
-						})}
+					{self.generate_log_widgets(&*state)}
 					</ListBox>
 				</ScrolledWindow>
-				<Entry
-					on realize=|entry| { entry.grab_focus(); UiMessageChat::Nop }
-					on activate=|entry| {
-						let text = entry.get_text().map(|x| x.to_string()).unwrap_or_default();
-						let out = UiMessageChat::Send(vec![MessageItem::Text(text)]);
-						entry.set_text("");
-						out
-					}
-				/>
+				<Box::new(Orientation::Horizontal, 0)>
+					<Button label="" image="mail-attachment" always_show_image=true />
+					<Entry
+						Box::expand=true
+						on realize=|entry| { entry.grab_focus(); UiMessageChat::Nop }
+						on activate=|entry| {
+							let text = entry.get_text().map(|x| x.to_string()).unwrap_or_default();
+							let out = UiMessageChat::Send(vec![MessageItem::Text(text)]);
+							entry.set_text("");
+							out
+						}
+					/>
+					<Button label="" image="go-next" always_show_image=true />
+				</Box>
 			</Box>
 		}
 	}

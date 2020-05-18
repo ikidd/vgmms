@@ -9,14 +9,17 @@ use vgtk::lib::gdk_pixbuf::Pixbuf;
 
 use std::default::Default;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 struct Number {
 	num: u64,
 }
 
 impl Number {
+	pub fn new(n: u64) -> Self {
+		Number { num: n }
+	}
 	pub fn same(&self, other: &str) -> bool {
 		other == self.to_string()
 	}
@@ -30,8 +33,10 @@ impl Number {
 	}
 }
 
-#[derive(Clone, Debug, Default)]
-struct Model {}
+#[derive(Clone, Default)]
+struct Model {
+	state: Arc<RwLock<VgmmsState>>,
+}
 
 #[derive(Clone, Debug)]
 enum UiMessageTriv {
@@ -123,14 +128,19 @@ struct VgmmsState {
 
 impl Default for VgmmsState {
 	fn default() -> Self {
+		let mut map = HashMap::new();
+		let nums = vec![Number::new(41411)];
+		map.insert(nums.clone(), Chat {numbers: nums.clone()});
+		let nums = vec![Number::new(1238675309)];
+		map.insert(nums.clone(), Chat {numbers: nums.clone()});
 		VgmmsState {
-			chats: Default::default(),
+			chats: map,
 			messages: Default::default(),
 			contacts: Default::default(),
 			attachments: Default::default(),
 			next_message_id: 4321,
 			next_attachment_id: 1,
-			my_number: Number { num: 4561237890 },
+			my_number: Number::new(4561237890),
 		}
 	}
 }
@@ -153,11 +163,11 @@ impl Component for Model {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
 				<Window default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessageTriv::Exit>
 					<Box::new(Orientation::Vertical, 0)>
-						<Label label="vgmms" />
 						<Notebook Box::expand=true>
-							<@ChatModel />
+							{
+								self.state.read().unwrap().chats.iter().map(|(_, c)| gtk! {<@ChatModel chat=c />})
+							}
 						</Notebook>
-						<Label label="vgmms" />
 					</Box>
 				</Window>
 			</Application>
@@ -176,8 +186,7 @@ fn main() {
 
 #[derive(Clone, Default)]
 struct ChatModel {
-	state: Arc<Mutex<VgmmsState>>,
-	target: Chat,
+	state: Arc<RwLock<VgmmsState>>,
 	chat_log: Vec<MessageId>,
 }
 
@@ -194,11 +203,15 @@ impl ChatModel {
 	fn generate_log_widgets<'a>(&'a self, state: &'a VgmmsState) -> impl Iterator<Item=VNode<Self>> + 'a {
 		self.chat_log.iter().filter_map(move |id| {
 			let msg = state.messages.get(id)?;
+			let align = match msg.status {
+				MessageStatus::Received => 0.0,
+				_ => 1.0
+			};
 			let widget_content = msg.contents.iter().map(|item| {
 				match item {
 					MessageItem::Text(ref t) => {
 						let text = format!("[{}] {}: {}", msg.time, msg.sender.num, t);
-						gtk! { <Label label=text line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=0.0 /> }
+						gtk! { <Label label=text line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=align /> }
 					},
 					MessageItem::Attachment(ref id) => {
 						let att = state.attachments.get(id).expect("attachment not found!");
@@ -226,9 +239,14 @@ impl ChatModel {
 	}
 }
 
+#[derive(Clone, Default)]
+struct ChatModelProps {
+	chat: Chat,
+}
+
 impl Component for ChatModel {
 	type Message = UiMessageChat;
-	type Properties = ();
+	type Properties = ChatModelProps;
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
 		use UiMessageChat::*;
@@ -239,7 +257,7 @@ impl Component for ChatModel {
 			},
 			Send(items) => {
 				let id = {
-					let mut state = self.state.lock().unwrap();
+					let mut state = self.state.write().unwrap();
 					let id = state.next_message_id;
 					let num = state.my_number;
 					state.messages.insert(id, MessageInfo {
@@ -269,7 +287,7 @@ impl Component for ChatModel {
 	}
 
 	fn view(&self) -> VNode<ChatModel> {
-		let state = self.state.lock().unwrap();
+		let state = self.state.read().unwrap();
 		gtk! {
 			<Box::new(Orientation::Vertical, 0)>
 				<ScrolledWindow Box::expand=true>

@@ -3,13 +3,15 @@
 use vgtk::ext::*;
 use vgtk::lib::gio::{ApplicationFlags};
 use vgtk::lib::gtk::*;
-use vgtk::{gtk, run, Component, UpdateAction, VNode};
+use vgtk::{gtk, run, Component, UpdateAction, VNode, Callback};
 
 use vgtk::lib::gdk_pixbuf::Pixbuf;
 
 use std::default::Default;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
+
+use std::ffi::OsString;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 struct Number {
@@ -43,6 +45,7 @@ enum UiMessageTriv {
 	Exit,
 }
 
+#[derive(Clone, Debug)]
 enum AttachmentData {
 	Inline(Vec<u8>),
 	FilePath(PathBuf),
@@ -51,8 +54,9 @@ enum AttachmentData {
 /**
   attachments are owned by the message that contains them. attachments on disk
 */
+#[derive(Clone, Debug)]
 struct Attachment {
-	filename: Vec<u8>,
+	filename: OsString,
 	mime_type: String,
 	size: u64,
 	data: AttachmentData,
@@ -65,6 +69,12 @@ type MessageId = usize;
 enum MessageItem {
 	Text(String),
 	Attachment(AttachmentId),
+}
+
+#[derive(Clone, Debug)]
+enum DraftItem {
+	Text(String),
+	Attachment(Attachment),
 }
 
 #[derive(Clone, Debug)]
@@ -183,6 +193,113 @@ fn main() {
 
 
 
+#[derive(Clone, Default)]
+struct InputBoxModel {
+	file_paths: Vec<PathBuf>,
+	message: String,
+	on_send: Callback<Vec<DraftItem>>,
+}
+
+#[derive(Clone, Debug)]
+enum UiMessageInputBox {
+	Send,
+	TextChanged(String),
+	AskForFile,
+	AddFile(PathBuf),
+	ClearFiles,
+	Clear,
+	Nop,
+}
+
+impl Component for InputBoxModel {
+	type Message = UiMessageInputBox;
+	type Properties = Self;
+
+	fn create(props: Self) -> Self {
+		props
+	}
+
+	fn change(&mut self, props: Self) -> UpdateAction<Self> {
+		*self = props;
+		UpdateAction::Render
+	}
+
+	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
+		use UiMessageInputBox::*;
+		match msg {
+			Send => {
+				let mut items = vec![];
+				if self.message.len() > 0 {
+					let mut s = String::new();
+					std::mem::swap(&mut self.message, &mut s);
+					items.push(DraftItem::Text(s));
+				}
+				for path in self.file_paths.drain(..) {
+					let filename = path.file_name().unwrap_or_default().into();
+					let att = Attachment {
+						filename: filename,
+						mime_type: "image/png".into(),
+						size: 4500,
+						data: AttachmentData::FilePath(path),
+					};
+					items.push(DraftItem::Attachment(att));
+				}
+				self.on_send.send(items);
+				self.message = String::new();
+				UpdateAction::Render
+			},
+			TextChanged(s) => {
+				self.message = s;
+				UpdateAction::None
+			},
+			AskForFile => {
+				//TODO
+				self.file_paths.push("/tmp/test.png".into());
+				UpdateAction::Render
+			}
+			AddFile(path) => {
+				self.file_paths.push(path);
+				UpdateAction::Render
+			},
+			ClearFiles => {
+				self.file_paths.clear();
+				UpdateAction::Render
+			},
+			Clear => {
+				self.file_paths.clear();
+				//self.message.clear();
+				UpdateAction::Render
+			},
+			Nop => {
+				UpdateAction::None
+			},
+		}
+	}
+
+	fn view(&self) -> VNode<Self> {
+		gtk! {
+			<Box::new(Orientation::Horizontal, 0)>
+				<Button label="" image="mail-attachment" always_show_image=true
+					on clicked=|_entry| UiMessageInputBox::AskForFile
+				/>
+				<Entry
+					text=self.message.clone()
+					Box::expand=true
+					on realize=|entry| { entry.grab_focus(); UiMessageInputBox::Nop }
+					on changed=|entry| {
+						let text = entry.get_text().map(|x| x.to_string()).unwrap_or_default();
+						UiMessageInputBox::TextChanged(text)
+					}
+					on activate=|_| UiMessageInputBox::Send
+				/>
+				<Button label="" image="go-next" always_show_image=true
+					on clicked=|_| UiMessageInputBox::Send
+				/>
+			</Box>
+		}
+	}
+}
+
 
 #[derive(Clone, Default)]
 struct ChatModel {
@@ -193,7 +310,7 @@ struct ChatModel {
 #[derive(Clone, Debug)]
 enum UiMessageChat {
 	NewMessage(MessageId),
-	Send(Vec<MessageItem>),
+	Send(Vec<DraftItem>),
 	AskDelete(MessageId),
 	Delete(MessageId),
 	Nop,
@@ -203,9 +320,9 @@ impl ChatModel {
 	fn generate_log_widgets<'a>(&'a self, state: &'a VgmmsState) -> impl Iterator<Item=VNode<Self>> + 'a {
 		self.chat_log.iter().filter_map(move |id| {
 			let msg = state.messages.get(id)?;
-			let align = match msg.status {
-				MessageStatus::Received => 0.0,
-				_ => 1.0
+			let (align, halign) = match msg.status {
+				MessageStatus::Received => (0.0, gtk::Align::Start),
+				_ => (1.0, gtk::Align::End),
 			};
 			let widget_content = msg.contents.iter().map(|item| {
 				match item {
@@ -218,8 +335,8 @@ impl ChatModel {
 						if true /*mime_type_is_image(att.mime_type)*/ {
 							if let AttachmentData::FilePath(ref path) = att.data {
 								/*gtk! { <Image file=path /> }*/
-						        let pixbuf = Pixbuf::new_from_file(path).ok();
-								gtk! { <Image pixbuf=pixbuf /> }
+						        let pixbuf = Pixbuf::new_from_file_at_size(path, 200, 200).ok();
+								gtk! { <Image pixbuf=pixbuf halign=halign /> }
 							} else {
 								gtk! { <Label label="image data not found" /> }
 							}
@@ -232,7 +349,9 @@ impl ChatModel {
 			});
 			Some(gtk! {
 				<ListBoxRow>
-				{widget_content}
+					<Box::new(Orientation::Vertical, 0)>
+						{widget_content}
+					</Box>
 				</ListBoxRow>
 			})
 		})
@@ -255,7 +374,21 @@ impl Component for ChatModel {
 				self.chat_log.push(id);
 				UpdateAction::Render
 			},
-			Send(items) => {
+			Send(draft_items) => {
+				let items = {
+					let mut state = self.state.write().unwrap();
+					draft_items.into_iter().map(|item| match item {
+						DraftItem::Attachment(att) =>
+							MessageItem::Attachment({
+								let id = state.next_attachment_id;
+								state.attachments.insert(id, att);
+								state.next_attachment_id += 1;
+								id
+							}),
+						DraftItem::Text(t) => MessageItem::Text(t),
+						})
+					.collect()
+				};
 				let id = {
 					let mut state = self.state.write().unwrap();
 					let id = state.next_message_id;
@@ -295,20 +428,9 @@ impl Component for ChatModel {
 					{self.generate_log_widgets(&*state)}
 					</ListBox>
 				</ScrolledWindow>
-				<Box::new(Orientation::Horizontal, 0)>
-					<Button label="" image="mail-attachment" always_show_image=true />
-					<Entry
-						Box::expand=true
-						on realize=|entry| { entry.grab_focus(); UiMessageChat::Nop }
-						on activate=|entry| {
-							let text = entry.get_text().map(|x| x.to_string()).unwrap_or_default();
-							let out = UiMessageChat::Send(vec![MessageItem::Text(text)]);
-							entry.set_text("");
-							out
-						}
-					/>
-					<Button label="" image="go-next" always_show_image=true />
-				</Box>
+				<@InputBoxModel
+					on send=|draft| UiMessageChat::Send(draft)
+				/>
 			</Box>
 		}
 	}

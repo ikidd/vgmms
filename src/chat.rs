@@ -64,16 +64,20 @@ impl ChatModel {
 						gtk! { <Label label=text line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=align /> }
 					},
 					MessageItem::Attachment(ref id) => {
-						let att = state.attachments.get(id).expect("attachment not found!");
+						let att = match state.attachments.get(id) {
+							Some(att) => att,
+							None => {
+								return gtk! { <Label label=format!("[attachment {} not found]", id) xalign=align /> }
+							}
+						};
 						if att.mime_type.starts_with("image/") {
 							let (ref path, start, len) = att.data;
 							match with_attachment(path, |data|
 								load_image(&data[start as usize..(start+len) as usize], 200, 200)) {
 								Ok(Ok(pixbuf)) => gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> },
-								Ok(Err(e)) => gtk! { <Label label=format!("unloadable image: {}", e) xalign=align /> },
+								Ok(Err(e)) => gtk! { <Label label=format!("[image could not be loaded: {}]", e) xalign=align /> },
 								Err(e) => {
-									eprintln!("could not open {}: {}", path.display(), e);
-									gtk! { <Label label="attachment could not be opened" xalign=align /> }
+									gtk! { <Label label=format!("[attachment at {} could not be opened: {}]", path.display(), e) xalign=align /> }
 								},
 							}
 						} else {

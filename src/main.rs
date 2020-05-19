@@ -516,7 +516,6 @@ enum UiMessageChat {
 	Send(Vec<DraftItem>),
 	AskDelete(MessageId),
 	Delete(MessageId),
-	Nop,
 }
 
 impl ChatModel {
@@ -624,9 +623,6 @@ impl Component for ChatModel {
 			},
 			Delete(_msg_id) => {
 				UpdateAction::Render
-			},
-			Nop => {
-				UpdateAction::None
 			},
 		}
 	}

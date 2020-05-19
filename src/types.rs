@@ -80,3 +80,15 @@ pub struct MessageInfo {
 pub struct Chat {
 	pub numbers: Vec<Number>,
 }
+
+use std::collections::{BTreeMap, HashMap};
+
+pub struct VgmmsState {
+	pub chats: HashMap<Vec<Number>, Chat>,
+	pub messages: BTreeMap<MessageId, MessageInfo>,
+	pub contacts: HashMap<Number, Contact>,
+	pub attachments: HashMap<AttachmentId, Attachment>,
+	pub next_message_id: MessageId,
+	pub next_attachment_id: usize,
+	pub my_number: Number,
+}

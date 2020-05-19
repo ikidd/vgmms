@@ -99,17 +99,9 @@ struct MessageInfo {
 	status: MessageStatus,
 }
 
-struct MessageTarget {
-}
-
-
 #[derive(Clone, Debug, Default)]
 struct Chat {
-//	OneOnOne(Number),
 	numbers: Vec<Number>,
-}
-
-impl Chat {
 }
 
 #[derive(Clone, Debug)]
@@ -326,7 +318,7 @@ fn main() {
 		move || futures::executor::block_on(
 			notif_stream.for_each(move |notif| {
 				println!("notif sent!");
-				scope.try_send(UiMessage::Notif(notif));
+				scope.try_send(UiMessage::Notif(notif)).unwrap();
 				futures::future::ready(())
 			}))
 	);
@@ -443,7 +435,7 @@ impl Component for InputBoxModel {
 					let size = match path.metadata() {
 						Ok(meta) => meta.len(),
 						Err(e) => {
-							eprintln!("could not stat file: {}", path.display());
+							eprintln!("could not stat file {}: {}", path.display(), e);
 							continue
 						},
 					};

@@ -298,9 +298,14 @@ fn main() {
 	let notif_stream = dbus::start();
 	pretty_env_logger::init();
 	let (app, scope) = vgtk::start::<Model>();
-	std::thread::spawn(move || futures::executor::block_on(
-		notif_stream.map(move |notif| scope.try_send(UiMessage::Notif(notif))).into_future()
-	));
+	std::thread::spawn(
+		move || futures::executor::block_on(
+			notif_stream.for_each(move |notif| {
+				println!("notif sent!");
+				scope.try_send(UiMessage::Notif(notif));
+				futures::future::ready(())
+			}))
+	);
 	std::process::exit(app.run(&[]));
 }
 

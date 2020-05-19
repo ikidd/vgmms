@@ -9,8 +9,9 @@ pub struct Attachment {
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(C)]
 pub struct Number {
-	num: u64,
+	pub num: u64,
 }
 
 impl Number {

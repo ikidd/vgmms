@@ -14,6 +14,7 @@ mod chat;
 mod dbus;
 mod input_box;
 mod types;
+mod db;
 
 use chat::*;
 use types::*;

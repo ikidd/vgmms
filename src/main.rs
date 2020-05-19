@@ -281,7 +281,7 @@ impl Component for Model {
 					<GtkBox::new(Orientation::Vertical, 0)>
 						<Notebook GtkBox::expand=true>
 							{
-								self.state.read().unwrap().chats.iter().map(|(_, c)| gtk! {<@ChatModel chat=c />})
+								self.state.read().unwrap().chats.iter().map(|(_, c)| gtk! {<@ChatModel chat=c state=self.state.clone() />})
 							}
 						</Notebook>
 					</GtkBox>

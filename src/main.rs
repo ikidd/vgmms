@@ -68,8 +68,14 @@ impl VgmmsState {
 		use self::dbus::DbusNotification::*;
 		match notif {
 			MmsStatusUpdate {
-				id: _, status,
-			} => (),
+				id, status,
+			} => {
+				if let Some(msg) = self.messages.get_mut(&id) {
+					msg.status = status;
+				} else {
+					eprintln!("cannot find message {} to update status", hex::encode(&id[..]));
+				}
+			},
 			MmsReceived {
 				id: _, date, subject: _, sender,
 				recipients, attachments,

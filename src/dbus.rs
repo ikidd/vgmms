@@ -1,8 +1,9 @@
 use dbus::blocking::Connection;
 use dbus::message::MatchRule;
+use std::path::PathBuf;
 use std::time::Duration;
 
-use std::path::PathBuf;
+use crate::types::MessageStatus;
 
 #[derive(Debug, Clone)]
 pub struct Attachment {
@@ -17,7 +18,7 @@ pub struct Attachment {
 pub enum DbusNotification {
 	MmsStatusUpdate {
 		id: [u8; 20],
-		status: ()/*MmsStatus*/,
+		status: MessageStatus,
 	},
 	MmsReceived {
 		id: [u8; 20],

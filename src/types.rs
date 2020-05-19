@@ -52,13 +52,21 @@ pub struct Contact {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
+#[repr(u8)]
 pub enum MessageStatus {
-	Received,
+	Received = 0,
 	Draft,
 	Sending,
 	Sent,
 	Failed,
+}
+
+impl MessageStatus {
+	pub fn from_u8(n: u8) -> Option<MessageStatus> {
+		use MessageStatus::*;
+		[Received, Draft, Sending, Sent, Failed].get(n as usize).cloned()
+	}
 }
 
 #[derive(Clone, Debug)]

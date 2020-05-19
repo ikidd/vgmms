@@ -1,5 +1,5 @@
 use rusqlite::{params, Connection};
-use byteorder::{ByteOrder, WriteBytesExt};
+use byteorder::WriteBytesExt;
 
 use crate::types::*;
 
@@ -25,7 +25,7 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 	conn.execute(
 		"CREATE TABLE attachments (
 			id INTEGER PRIMARY KEY,
-			name STRING,
+			name BLOB,
 			mime_type STRING,
 			path STRING,
 			start INTEGER,
@@ -40,7 +40,7 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 */
 	conn.execute(
 		"INSERT INTO attachments (id, name, mime_type, path, start, len)
-		VALUES (4, 'red.png', 'image/png', '/tmp/red.png', 0, 91)
+		VALUES (4, X'7265642e706e67', 'image/png', '/tmp/red.png', 0, 91)
 		;", params![])?;
 	conn.execute(
 		"INSERT INTO messages (id, sender, chat, time, contents, status)
@@ -78,7 +78,7 @@ pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) 
 			}
 			MessageItem::Attachment(att_id) => {
 				contents_bytes.push(b'a');
-				contents_bytes.write_u64::<byteorder::LittleEndian>(*att_id);
+				let _ = contents_bytes.write_u64::<byteorder::LittleEndian>(*att_id);
 			}
 		}
 	}
@@ -160,8 +160,9 @@ pub fn get_all_attachments(conn: &mut Connection) -> rusqlite::Result<HashMap<At
 
 	let att_iter = q.query_map(params![], |row| {
 		let id: AttachmentId = get_u64(row, 0)?;
+		use std::os::unix::ffi::OsStringExt;
 		let att = Attachment {
-			name: std::ffi::OsString::from(row.get::<_, String>(1)?),
+			name: OsStringExt::from_vec(row.get(1)?),
 			mime_type: row.get::<_, String>(2)?,
 			data: (
 				row.get::<_, String>(3)?.into(),

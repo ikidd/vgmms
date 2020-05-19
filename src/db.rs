@@ -90,15 +90,10 @@ impl<'a> Query<'a> {
 }
 
 pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl Iterator<Item=rusqlite::Result<(MessageId, MessageInfo)>> + 'a, String>> {
-	use std::convert::TryInto;
 	use crate::db::get::*;
 
 	let message_iter = stmt.0.query_map(params![], |row| {
-		let id: [u8; 20] = if let rusqlite::types::ValueRef::Blob(data) = row.get_raw(0) {
-			data.try_into().expect("invalid message ID")
-		} else {
-			panic!("id column contained non-blob type")
-		};
+		let id: MessageId = get_id(row, 0)?;
 		let message = MessageInfo {
 			sender: get_number(row, 1).expect("invalid type"),
 			chat: get_numbers(row, 2).expect("invalid type"),
@@ -127,6 +122,16 @@ mod get {
 
 	pub fn get_number(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Number> {
 		Ok(Number { num: get_u64(row, idx)? })
+	}
+
+	pub fn get_id(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<MessageId> {
+		use std::convert::TryInto;
+		let id: MessageId = if let rusqlite::types::ValueRef::Blob(data) = row.get_raw(idx) {
+			data.try_into().expect("invalid message ID")
+		} else {
+			return Err(rusqlite::Error::InvalidColumnType(idx, "id".into(), rusqlite::types::Type::Blob))
+		};
+		Ok(id)
 	}
 
 	pub fn get_numbers(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Vec<Number>> {

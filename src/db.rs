@@ -1,5 +1,5 @@
 use rusqlite::{params, Connection};
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder, WriteBytesExt};
 
 use crate::types::*;
 
@@ -78,7 +78,7 @@ pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) 
 			}
 			MessageItem::Attachment(att_id) => {
 				contents_bytes.push(b'a');
-				byteorder::LittleEndian::write_u64(&mut contents_bytes, *att_id);
+				contents_bytes.write_u64::<byteorder::LittleEndian>(*att_id);
 			}
 		}
 	}

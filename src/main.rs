@@ -520,8 +520,8 @@ enum UiMessageChat {
 
 impl ChatModel {
 	fn generate_log_widgets<'a>(&'a self, state: &'a VgmmsState) -> impl Iterator<Item=VNode<Self>> + 'a {
-		self.chat_log.iter().filter_map(move |id| {
-			let msg = state.messages.get(id)?;
+		state.messages.iter().filter_map(move |(_id, msg)| {
+			//let msg = state.messages.get(id)?;
 			let (align, halign) = match msg.status {
 				MessageStatus::Received => (0.0, gtk::Align::Start),
 				_ => (1.0, gtk::Align::End),

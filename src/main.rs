@@ -127,13 +127,15 @@ impl VgmmsState {
 					let mut chat: Vec<_> = recipients.iter().filter_map(|r| Number::from_str(&*r, ())).collect();
 					chat.push(sender);
 					chat.sort();
-					self.messages.insert(id, MessageInfo {
+					let message = MessageInfo {
 						sender,
 						chat,
 						time,
 						contents,
 						status: MessageStatus::Received,
-					});
+					};
+					println!("inserting mms {}: {:?}", hex::encode(&id[..]), message);
+					self.messages.insert(id, message);
 				} else {
 					eprintln!("cannot parse number {}", sender);
 				}
@@ -152,13 +154,15 @@ impl VgmmsState {
 					let mut chat = vec![sender, self.my_number];
 					chat.sort();
 					let id = self.next_message_id();
-					self.messages.insert(id, MessageInfo {
+					let message = MessageInfo {
 						sender,
 						chat,
 						time,
 						contents: vec![MessageItem::Text(message)],
 						status: MessageStatus::Received,
-					});
+					};
+					println!("inserting sms {}: {:?}", hex::encode(&id[..]), message);
+					self.messages.insert(id, message);
 				} else {
 					eprintln!("cannot parse number {}", sender);
 				}

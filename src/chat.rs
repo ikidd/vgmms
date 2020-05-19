@@ -129,13 +129,15 @@ impl Component for ChatModel {
 					let mut state = self.state.write().unwrap();
 					let id = state.next_message_id();
 					let num = state.my_number;
-					state.messages.insert(id, MessageInfo {
+					let message = MessageInfo {
 						sender: num,
 						chat: self.chat.numbers.clone(),
 						time: chrono::offset::Local::now().timestamp() as u64,
 						contents: items,
 						status: MessageStatus::Sending,
-					});
+					};
+					println!("inserting send {}: {:?}", hex::encode(&id[..]), message);
+					state.messages.insert(id, message);
 					id
 				};
 				let fut = async move {

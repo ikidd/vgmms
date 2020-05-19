@@ -140,10 +140,9 @@ impl VgmmsState {
 		let id = self.next_message_id;
 
 		/* bytewise increment */
-		let mut carry = true;
 		for byte in self.next_message_id.iter_mut().rev() {
-			*byte += carry as u8;
-			if *byte == 0 && carry {
+			*byte += 1u8;
+			if *byte == 0 {
 				continue
 			}
 			break

@@ -2,9 +2,11 @@ use vgtk::ext::*;
 use vgtk::lib::gtk::{self, *, Box as GtkBox};
 use vgtk::{gtk, Component, UpdateAction, VNode};
 use vgtk::lib::gdk_pixbuf::Pixbuf;
+use vgtk::lib::{gio, glib};
 
 use std::boxed::Box;
 use std::default::Default;
+use std::path::Path;
 
 use std::sync::{Arc, RwLock};
 use crate::types::*;
@@ -24,6 +26,22 @@ pub enum UiMessageChat {
 	Send(Vec<DraftItem>),
 	AskDelete(MessageId),
 	Delete(MessageId),
+}
+
+fn with_attachment<T, F: FnOnce(&[u8]) -> T>(path: &Path, f: F) -> Result<T, std::io::Error> {
+	use memmap::MmapOptions;
+	let file = std::fs::File::open(path)?;
+	let mmap = unsafe { MmapOptions::new().map_mut(&file)? };
+	let mmap = mmap.make_read_only()?;
+	Ok(f(&*mmap))
+}
+
+fn load_image(data: &[u8], width: i32, height: i32) -> Result<Pixbuf, glib::Error> {
+	//TODO: reduce copying
+	let data_stream = gio::MemoryInputStream::new_from_bytes(&glib::Bytes::from_owned(data.to_vec()));
+	let pixbuf = Pixbuf::new_from_stream_at_scale(&data_stream,
+		width, height, true, None::<&gio::Cancellable>);
+	pixbuf
 }
 
 impl ChatModel {
@@ -46,7 +64,8 @@ impl ChatModel {
 						let att = state.attachments.get(id).expect("attachment not found!");
 						if att.mime_type.starts_with("image/") {
 							let AttachmentData::FileRef(ref path, start, len) = att.data;
-							if let Ok(pixbuf) = Pixbuf::new_from_file_at_size(path, 200, 200) {
+							if let Ok(Ok(pixbuf)) = with_attachment(path, |data|
+								load_image(&data[start as usize..(start+len) as usize], 200, 200)) {
 								gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> }
 							} else {
 								gtk! { <Label label="unloadable image" xalign=align /> }

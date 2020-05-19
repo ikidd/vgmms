@@ -14,6 +14,8 @@ use std::boxed::Box;
 
 use std::ffi::OsString;
 
+mod dbus;
+
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 struct Number {
 	num: u64,
@@ -187,6 +189,7 @@ impl Component for Model {
 }
 
 fn main() {
+	let notif_sink = dbus::start();
 	pretty_env_logger::init();
 	std::process::exit(run::<Model>());
 }

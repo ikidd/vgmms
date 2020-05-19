@@ -173,19 +173,39 @@ impl VgmmsState {
 
 //fn ensure_chat_for(&mut self, recipients: ) -> 
 
+use std::collections::{BTreeMap, HashMap};
+
 impl Default for VgmmsState {
 	fn default() -> Self {
 		let my_number = Number::new(4561237890);
 
-		let mut map = std::collections::HashMap::new();
+		let mut map = HashMap::new();
 		let nums = vec![Number::new(41411), my_number];
 		map.insert(nums.clone(), Chat {numbers: nums.clone()});
 		let nums = vec![Number::new(1238675309), my_number];
 		map.insert(nums.clone(), Chat {numbers: nums.clone()});
 
+		let mut messages = BTreeMap::new();
+
+		let mut conn = db::connect().unwrap();
+		let _ = db::create_tables(&mut conn);
+		let mut q = db::Query::new(&mut conn).unwrap();
+
+		for res in db::get_all_messages(&mut q).unwrap().unwrap() {
+			match res {
+				Ok((id, m)) => {
+					//println!("from db inserting {:?}", m);
+					messages.insert(id, m);
+				},
+				Err(e) => {
+					eprintln!("error loading messages from db: {}", e)
+				},
+			}
+		}
+
 		VgmmsState {
 			chats: map,
-			messages: Default::default(),
+			messages,
 			contacts: Default::default(),
 			attachments: Default::default(),
 			next_message_id: {let mut id = [0u8; 20]; id[19] = 1; id},

@@ -3,12 +3,16 @@ use byteorder::ByteOrder;
 
 use crate::types::*;
 
-fn connect() -> rusqlite::Result<Connection> {
-	let conn = Connection::open_in_memory()?;
+pub fn connect() -> rusqlite::Result<Connection> {
+	let conn = Connection::open("/tmp/test.sqlite3")?;
 	Ok(conn)
 }
 
-fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
+pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
+	conn.execute(
+		"CREATE TABLE chats (
+			numbers BLOB
+		)", params![])?;
 	conn.execute(
 		"CREATE TABLE messages (
 			id BLOB PRIMARY KEY,
@@ -17,8 +21,14 @@ fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 			time INTEGER,
 			contents BLOB,
 			status INTEGER
-		)
+		)", params![])?;
+	conn.execute(
+		"INSERT INTO messages (id, sender, chat, time, contents, status)
+		VALUES (X'0000001234567890e1000a0400d0000050000003', 41411, X'c3a100000000000082f7de0f01000000', 1589921285, X'7468656c6c6f00', 0)
+		;", params![])
+}
 
+/*
 		CREATE TABLE attachments (
 			id INTEGER PRIMARY KEY,
 			name BLOB,
@@ -29,10 +39,9 @@ fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 
 		CREATE TABLE chats (
 			numbers BLOB
-		)",
-		params![],
-	)
-}
+		)
+
+*/
 
 fn insert_message(conn: &mut Connection, id: MessageId, msg: &MessageInfo) -> rusqlite::Result<usize> {
 	let chat_bytes: &[u8] = unsafe {
@@ -47,7 +56,7 @@ fn insert_message(conn: &mut Connection, id: MessageId, msg: &MessageInfo) -> ru
 		match m {
 			MessageItem::Text(t) => {
 				contents_bytes.push(b't');
-				contents_bytes.write_all(t.as_bytes());
+				let _ = contents_bytes.write_all(t.as_bytes());
 				contents_bytes.push(0);
 			}
 			MessageItem::Attachment(att_id) => {
@@ -59,7 +68,7 @@ fn insert_message(conn: &mut Connection, id: MessageId, msg: &MessageInfo) -> ru
 	}
 	
 	conn.execute(
-		"INSERT INTO messages (id, sender, chat, time, contents, status) VALUES (?1, ?2)",
+		"INSERT INTO messages (id, sender, chat, time, contents, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
 		params![&id[..], msg.sender.num as i64, chat_bytes, msg.time as i64, contents_bytes, msg.status as u8],
 	)
 }
@@ -68,7 +77,7 @@ pub struct Query<'a>(rusqlite::Statement<'a>);
 
 impl<'a> Query<'a> {
 	pub fn new(conn: &'a mut Connection) -> rusqlite::Result<Query<'a>> {
-		Ok(Query(conn.prepare("SELECT id, sender, chat, time, contents FROM messages")?))
+		Ok(Query(conn.prepare("SELECT id, sender, chat, time, contents, status FROM messages ORDER BY time")?))
 	}
 }
 
@@ -88,11 +97,11 @@ pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl
 	}
 
 	fn get_numbers(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Vec<Number>> {
-		if let rusqlite::types::ValueRef::Blob(data) = row.get_raw(0) {
+		if let rusqlite::types::ValueRef::Blob(data) = row.get_raw(idx) {
 			let chat_nums: &[Number] = unsafe {
 				std::slice::from_raw_parts(
 					data.as_ptr() as *const _,
-					data.len() / std::mem::size_of::<Chat>())
+					data.len() / std::mem::size_of::<Number>())
 			};
 			Ok(chat_nums.to_vec())
 		} else {
@@ -162,7 +171,6 @@ pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl
 			contents: get_message_items(row, 4).expect("invalid type"),
 			status: MessageStatus::from_u8(get_u8(row, 5).expect("invalid type")).expect("invalid message status"),
 		};
-		
 		Ok((id, message))
 	})?;
 

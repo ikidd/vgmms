@@ -7,8 +7,6 @@ edition = "2018"
 [dependencies]
 vgtk = { git = "https://github.com/nt8r/vgtk/", branch="patch-1" }
 pretty_env_logger = "0.4"
-gtk = "0.8.1"
-gio = "*"
-pango = "*"
+pango = "0.8"
 futures = "*"
 dbus = "0.8"

@@ -1,8 +1,8 @@
 #![recursion_limit="512"]
 
 use vgtk::ext::*;
-use vgtk::lib::gio::{ApplicationFlags};
-use vgtk::lib::gtk::{*, Box as GtkBox};
+use vgtk::lib::gio::{self, ApplicationFlags};
+use vgtk::lib::gtk::{self, *, Box as GtkBox};
 use vgtk::{gtk, Component, UpdateAction, VNode, Callback};
 
 use vgtk::lib::gdk_pixbuf::Pixbuf;

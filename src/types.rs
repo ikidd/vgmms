@@ -34,6 +34,23 @@ impl Number {
 pub type AttachmentId = u64;
 pub type MessageId = [u8; 20];
 
+pub trait MessageIdExt {
+	fn increment(&mut self);
+}
+
+impl MessageIdExt for MessageId {
+	fn increment(&mut self) {
+		/* bytewise increment */
+		for byte in self.iter_mut().rev() {
+			*byte += 1u8;
+			if *byte == 0 {
+				continue
+			}
+			break
+		}
+	}
+}
+
 #[derive(Clone, Debug)]
 pub enum MessageItem {
 	Text(String),

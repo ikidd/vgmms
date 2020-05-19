@@ -58,14 +58,7 @@ impl VgmmsState {
 	pub fn next_message_id(&mut self) -> MessageId {
 		let id = self.next_message_id;
 
-		/* bytewise increment */
-		for byte in self.next_message_id.iter_mut().rev() {
-			*byte += 1u8;
-			if *byte == 0 {
-				continue
-			}
-			break
-		}
+		self.next_message_id.increment();
 
 		id
 	}

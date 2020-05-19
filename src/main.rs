@@ -199,6 +199,11 @@ impl Default for VgmmsState {
 			},
 		};
 
+		let next_attachment_id = match db::get_next_attachment_id(&mut conn) {
+			Ok(id) => id,
+			_ => 1,
+		};
+
 		{
 			let mut q = db::Query::new(&mut conn).unwrap();
 
@@ -223,7 +228,7 @@ impl Default for VgmmsState {
 			contacts: Default::default(),
 			attachments,
 			next_message_id,
-			next_attachment_id: 1,
+			next_attachment_id,
 			my_number,
 			db_conn: conn,
 		}

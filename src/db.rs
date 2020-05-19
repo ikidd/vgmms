@@ -115,7 +115,19 @@ pub fn get_next_message_id(conn: &mut Connection) -> rusqlite::Result<MessageId>
 			id.increment();
 			Ok(id)
 		} else {
-			Err(rusqlite::Error::InvalidColumnType(0, "Vec<Number>".into(), rusqlite::types::Type::Blob))
+			Err(rusqlite::Error::InvalidColumnType(0, "message id".into(), rusqlite::types::Type::Blob))
+		}
+	})?;
+	iter.next().unwrap()
+}
+
+pub fn get_next_attachment_id(conn: &mut Connection) -> rusqlite::Result<AttachmentId> {
+	let mut stmt = conn.prepare("SELECT max(id) FROM attachments")?;
+	let mut iter = stmt.query_map(params![], |row| {
+		if let Ok(id) = crate::db::get::get_u64(row, 0) {
+			Ok(id + 1)
+		} else {
+			Err(rusqlite::Error::InvalidColumnType(0, "attachment id".into(), rusqlite::types::Type::Blob))
 		}
 	})?;
 	iter.next().unwrap()

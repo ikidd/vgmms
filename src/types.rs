@@ -94,4 +94,5 @@ pub struct VgmmsState {
 	pub next_message_id: MessageId,
 	pub next_attachment_id: AttachmentId,
 	pub my_number: Number,
+	pub db_conn: rusqlite::Connection,
 }

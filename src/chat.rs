@@ -10,7 +10,7 @@ use std::path::Path;
 
 use std::sync::{Arc, RwLock};
 use crate::types::*;
-
+use crate::db;
 use crate::input_box::*;
 
 #[derive(Clone, Default)]
@@ -143,6 +143,9 @@ impl Component for ChatModel {
 						status: MessageStatus::Sending,
 					};
 					println!("inserting send {}: {:?}", hex::encode(&id[..]), message);
+					if let Err(e) = db::insert_message(&mut state.db_conn, &id, &message) {
+						eprintln!("error saving message to database: {}", e);
+					}
 					state.messages.insert(id, message);
 					id
 				};

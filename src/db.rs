@@ -25,6 +25,10 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 	conn.execute(
 		"INSERT INTO messages (id, sender, chat, time, contents, status)
 		VALUES (X'0000001234567890e1000a0400d0000050000003', 41411, X'c3a100000000000082f7de0f01000000', 1589921285, X'7468656c6c6f00', 0)
+		;", params![])?;
+	conn.execute(
+		"INSERT INTO messages (id, sender, chat, time, contents, status)
+		VALUES (X'0000000000567833333055500000000000000008', 41411, X'c3a100000000000082f7de0f01000000', 1589921299, X'7468656c6c00', 0)
 		;", params![])
 }
 
@@ -43,12 +47,14 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 
 */
 
-fn insert_message(conn: &mut Connection, id: MessageId, msg: &MessageInfo) -> rusqlite::Result<usize> {
+pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) -> rusqlite::Result<usize> {
 	let chat_bytes: &[u8] = unsafe {
 		std::slice::from_raw_parts(
 			msg.chat.as_ptr() as *const _,
-			msg.chat.len() * std::mem::size_of::<Chat>())
+			msg.chat.len() * std::mem::size_of::<Number>())
 	};
+	
+	println!("insert chats: {:?}", chat_bytes);
 	
 	let mut contents_bytes = vec![];
 	for m in &msg.contents {
@@ -66,9 +72,11 @@ fn insert_message(conn: &mut Connection, id: MessageId, msg: &MessageInfo) -> ru
 			}
 		}
 	}
+
+	println!("insert contents: {:?}", contents_bytes);
 	
 	conn.execute(
-		"INSERT INTO messages (id, sender, chat, time, contents, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+		"INSERT INTO messages (id, sender, chat, time, contents, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6);",
 		params![&id[..], msg.sender.num as i64, chat_bytes, msg.time as i64, contents_bytes, msg.status as u8],
 	)
 }

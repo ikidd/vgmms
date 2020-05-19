@@ -135,6 +135,9 @@ impl VgmmsState {
 						status: MessageStatus::Received,
 					};
 					println!("inserting mms {}: {:?}", hex::encode(&id[..]), message);
+					if let Err(e) = db::insert_message(&mut self.db_conn, &id, &message) {
+						eprintln!("error saving message to database: {}", e);
+					}
 					self.messages.insert(id, message);
 				} else {
 					eprintln!("cannot parse number {}", sender);
@@ -162,6 +165,9 @@ impl VgmmsState {
 						status: MessageStatus::Received,
 					};
 					println!("inserting sms {}: {:?}", hex::encode(&id[..]), message);
+					if let Err(e) = db::insert_message(&mut self.db_conn, &id, &message) {
+						eprintln!("error saving message to database: {}", e);
+					}
 					self.messages.insert(id, message);
 				} else {
 					eprintln!("cannot parse number {}", sender);
@@ -189,17 +195,20 @@ impl Default for VgmmsState {
 
 		let mut conn = db::connect().unwrap();
 		let _ = db::create_tables(&mut conn);
-		let mut q = db::Query::new(&mut conn).unwrap();
 
-		for res in db::get_all_messages(&mut q).unwrap().unwrap() {
-			match res {
-				Ok((id, m)) => {
-					//println!("from db inserting {:?}", m);
-					messages.insert(id, m);
-				},
-				Err(e) => {
-					eprintln!("error loading messages from db: {}", e)
-				},
+		{
+			let mut q = db::Query::new(&mut conn).unwrap();
+
+			for res in db::get_all_messages(&mut q).unwrap().unwrap() {
+				match res {
+					Ok((id, m)) => {
+						//println!("from db inserting {:?}", m);
+						messages.insert(id, m);
+					},
+					Err(e) => {
+						eprintln!("error loading messages from db: {}", e)
+					},
+				}
 			}
 		}
 
@@ -211,6 +220,7 @@ impl Default for VgmmsState {
 			next_message_id: {let mut id = [0u8; 20]; id[19] = 1; id},
 			next_attachment_id: 1,
 			my_number,
+			db_conn: conn,
 		}
 	}
 }

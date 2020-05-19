@@ -95,11 +95,11 @@ pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl
 	let message_iter = stmt.0.query_map(params![], |row| {
 		let id: MessageId = get_id(row, 0)?;
 		let message = MessageInfo {
-			sender: get_number(row, 1).expect("invalid type"),
-			chat: get_numbers(row, 2).expect("invalid type"),
-			time: get_u64(row, 3).expect("invalid type"),
-			contents: get_message_items(row, 4).expect("invalid type"),
-			status: MessageStatus::from_u8(get_u8(row, 5).expect("invalid type")).expect("invalid message status"),
+			sender: get_number(row, 1)?,
+			chat: get_numbers(row, 2)?,
+			time: get_u64(row, 3)?,
+			contents: get_message_items(row, 4)?,
+			status: MessageStatus::from_u8(get_u8(row, 5)?).expect("invalid message status"),
 		};
 		Ok((id, message))
 	})?;

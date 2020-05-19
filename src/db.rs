@@ -91,20 +91,45 @@ impl<'a> Query<'a> {
 
 pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl Iterator<Item=rusqlite::Result<(MessageId, MessageInfo)>> + 'a, String>> {
 	use std::convert::TryInto;
+	use crate::db::get::*;
 
-	fn get_u8(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<u8> {
+	let message_iter = stmt.0.query_map(params![], |row| {
+		let id: [u8; 20] = if let rusqlite::types::ValueRef::Blob(data) = row.get_raw(0) {
+			data.try_into().expect("invalid message ID")
+		} else {
+			panic!("id column contained non-blob type")
+		};
+		let message = MessageInfo {
+			sender: get_number(row, 1).expect("invalid type"),
+			chat: get_numbers(row, 2).expect("invalid type"),
+			time: get_u64(row, 3).expect("invalid type"),
+			contents: get_message_items(row, 4).expect("invalid type"),
+			status: MessageStatus::from_u8(get_u8(row, 5).expect("invalid type")).expect("invalid message status"),
+		};
+		Ok((id, message))
+	})?;
+
+	Ok(Ok(message_iter))
+}
+
+mod get {
+	use byteorder::ByteOrder;
+
+	use crate::types::*;
+
+	pub fn get_u8(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<u8> {
 		Ok(row.get::<_, i8>(idx)? as u8)
 	}
 
-	fn get_u64(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<u64> {
+	pub fn get_u64(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<u64> {
 		Ok(row.get::<_, i64>(idx)? as u64)
 	}
 
-	fn get_number(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Number> {
+	pub fn get_number(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Number> {
 		Ok(Number { num: get_u64(row, idx)? })
 	}
 
-	fn get_numbers(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Vec<Number>> {
+	pub fn get_numbers(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Vec<Number>> {
 		if let rusqlite::types::ValueRef::Blob(data) = row.get_raw(idx) {
 			let chat_nums: &[Number] = unsafe {
 				std::slice::from_raw_parts(
@@ -119,7 +144,7 @@ pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl
 	}
 
 	//TODO: this is an awful serialization scheme but works for message text not containing NUL bytes
-	fn get_message_items(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Vec<MessageItem>> {
+	pub fn get_message_items(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Vec<MessageItem>> {
 		/*
 		serialization format: 
 			't' [^\0]+ '\0'
@@ -165,22 +190,4 @@ pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl
 		}
 		Ok(contents)
 	}
-
-	let message_iter = stmt.0.query_map(params![], |row| {
-		let id: [u8; 20] = if let rusqlite::types::ValueRef::Blob(data) = row.get_raw(0) {
-			data.try_into().expect("invalid message ID")
-		} else {
-			panic!("id column contained non-blob type")
-		};
-		let message = MessageInfo {
-			sender: get_number(row, 1).expect("invalid type"),
-			chat: get_numbers(row, 2).expect("invalid type"),
-			time: get_u64(row, 3).expect("invalid type"),
-			contents: get_message_items(row, 4).expect("invalid type"),
-			status: MessageStatus::from_u8(get_u8(row, 5).expect("invalid type")).expect("invalid message status"),
-		};
-		Ok((id, message))
-	})?;
-
-	Ok(Ok(message_iter))
 }

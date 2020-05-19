@@ -44,16 +44,12 @@ impl ChatModel {
 					},
 					MessageItem::Attachment(ref id) => {
 						let att = state.attachments.get(id).expect("attachment not found!");
-						if true /*mime_type_is_image(att.mime_type)*/ {
-							if let AttachmentData::FileRef(ref path, start, len) = att.data {
-								/*gtk! { <Image file=path /> }*/
-								if let Ok(pixbuf) = Pixbuf::new_from_file_at_size(path, 200, 200) {
-									gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> }
-								} else {
-									gtk! { <Label label="unloadable image" xalign=align /> }
-								}
+						if att.mime_type.starts_with("image/") {
+							let AttachmentData::FileRef(ref path, start, len) = att.data;
+							if let Ok(pixbuf) = Pixbuf::new_from_file_at_size(path, 200, 200) {
+								gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> }
 							} else {
-								gtk! { <Label label="image data not found" xalign=align /> }
+								gtk! { <Label label="unloadable image" xalign=align /> }
 							}
 						} else {
 							let text = format!("attachment of type {}", att.mime_type);

@@ -10,9 +10,12 @@ use std::sync::{Arc, RwLock};
 
 use std::ffi::OsString;
 
+mod chat;
 mod dbus;
+mod input_box;
 mod types;
 
+use chat::*;
 use types::*;
 
 #[derive(Clone, Default)]
@@ -227,8 +230,3 @@ fn main() {
 	);
 	std::process::exit(app.run(&[]));
 }
-
-mod input_box;
-
-mod chat;
-use chat::*;

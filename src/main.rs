@@ -77,7 +77,7 @@ impl VgmmsState {
 				}
 			},
 			MmsReceived {
-				id: _, date, subject: _, sender,
+				id, date, subject: _, sender,
 				recipients, attachments,
 				smil: _,
 			} => {
@@ -112,7 +112,6 @@ impl VgmmsState {
 				}
 				contents.insert(0, MessageItem::Text(text));
 				if let Some(num) = Number::from_str(&*sender, ()) {
-					let id = self.next_message_id();
 					self.messages.insert(id, MessageInfo {
 						sender: num,
 						recipients: recipients.iter().filter_map(|r| Number::from_str(&*r, ())).collect(),

@@ -3,7 +3,7 @@
 use vgtk::ext::*;
 use vgtk::lib::gio::{ApplicationFlags};
 use vgtk::lib::gtk::{*, Box as GtkBox};
-use vgtk::{gtk, run, Component, UpdateAction, VNode, Callback};
+use vgtk::{gtk, Component, UpdateAction, VNode, Callback};
 
 use vgtk::lib::gdk_pixbuf::Pixbuf;
 
@@ -41,11 +41,6 @@ impl Number {
 #[derive(Clone, Default)]
 struct Model {
 	state: Arc<RwLock<VgmmsState>>,
-}
-
-#[derive(Clone, Debug)]
-enum UiMessageTriv {
-	Exit,
 }
 
 #[derive(Clone, Debug)]
@@ -98,6 +93,7 @@ enum MessageStatus {
 #[derive(Clone, Debug)]
 struct MessageInfo {
 	sender: Number,
+	recipients: Vec<Number>,
 	time: u64,
 	contents: Vec<MessageItem>,
 	status: MessageStatus,
@@ -118,15 +114,13 @@ impl Chat {
 
 #[derive(Clone, Debug)]
 enum UiMessage {
+	Notif(dbus::DbusNotification),
 	Send(Vec<MessageItem>, Chat),
 	AskDelete(MessageId),
 	Delete(MessageId),
 	Exit,
 }
 
-fn on_dbus() {
-//	let targets
-}
 use std::collections::HashMap;
 
 struct VgmmsState {
@@ -166,12 +160,12 @@ impl VgmmsState {
 		use self::dbus::DbusNotification::*;
 		match notif {
 			MmsStatusUpdate {
-				id, status
+				id: _, status: _,
 			} => (),
 			MmsReceived {
-				id, date, subject, sender,
+				id: _, date, subject: _, sender,
 				recipients, attachments,
-				smil,
+				smil: _,
 			} => {
 				let mut contents = vec![];
 				let mut text = String::new();
@@ -200,6 +194,7 @@ impl VgmmsState {
 					let id = self.next_message_id();
 					self.messages.insert(id, MessageInfo {
 						sender: num,
+						recipients: recipients.iter().filter_map(|r| Number::from_str(&*r, ())).collect(),
 						time: 0/*date.parse()*/,
 						contents: contents,
 						status: MessageStatus::Received,
@@ -215,6 +210,7 @@ impl VgmmsState {
 					let id = self.next_message_id();
 					self.messages.insert(id, MessageInfo {
 						sender: num,
+						recipients: vec![self.my_number],
 						time: 0/*date.parse()*/,
 						contents: vec![MessageItem::Text(message)],
 						status: MessageStatus::Received,
@@ -249,22 +245,39 @@ impl Default for VgmmsState {
 }
 
 impl Component for Model {
-	type Message = UiMessageTriv;
+	type Message = UiMessage;
 	type Properties = ();
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
+		use UiMessage::*;
 		match msg {
-			UiMessageTriv::Exit => {
+			Notif(notif) => {
+				let mut state = self.state.write().unwrap();
+				state.handle_notif(notif);
+				UpdateAction::Render
+			},
+			Send(_mi, _chat) => {
+				UpdateAction::Render
+			},
+			AskDelete(_msg_id) => {
+				//
+				UpdateAction::None
+			},
+			Delete(_msg_id) => {
+				//messages.
+				UpdateAction::Render
+			},
+			Exit => {
 				vgtk::quit();
 				UpdateAction::None
-			}
+			},
 		}
 	}
 
 	fn view(&self) -> VNode<Model> {
 		gtk! {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
-				<Window default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessageTriv::Exit>
+				<Window default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
 					<GtkBox::new(Orientation::Vertical, 0)>
 						<Notebook GtkBox::expand=true>
 							{
@@ -279,9 +292,16 @@ impl Component for Model {
 }
 
 fn main() {
-	let notif_sink = dbus::start();
+	use gio::prelude::ApplicationExtManual;
+	use futures::stream::StreamExt;
+
+	let notif_stream = dbus::start();
 	pretty_env_logger::init();
-	std::process::exit(run::<Model>());
+	let (app, scope) = vgtk::start::<Model>();
+	std::thread::spawn(move || futures::executor::block_on(
+		notif_stream.map(move |notif| scope.try_send(UiMessage::Notif(notif))).into_future()
+	));
+	std::process::exit(app.run(&[]));
 }
 
 
@@ -487,6 +507,7 @@ impl Component for InputBoxModel {
 struct ChatModel {
 	state: Arc<RwLock<VgmmsState>>,
 	chat_log: Vec<MessageId>,
+	chat: Chat,
 }
 
 #[derive(Clone, Debug)]
@@ -543,14 +564,18 @@ impl ChatModel {
 	}
 }
 
-#[derive(Clone, Default)]
-struct ChatModelProps {
-	chat: Chat,
-}
-
 impl Component for ChatModel {
 	type Message = UiMessageChat;
-	type Properties = ChatModelProps;
+	type Properties = Self;
+
+	fn create(props: Self) -> Self {
+		props
+	}
+
+	fn change(&mut self, props: Self) -> UpdateAction<Self> {
+		*self = props;
+		UpdateAction::Render
+	}
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
 		use UiMessageChat::*;
@@ -582,6 +607,7 @@ impl Component for ChatModel {
 					let num = state.my_number;
 					state.messages.insert(id, MessageInfo {
 						sender: num,
+						recipients: self.chat.numbers.clone(),
 						time: 0,
 						contents: items,
 						status: MessageStatus::Sending,

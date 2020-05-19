@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use std::path::PathBuf;
 
+#[derive(Debug, Clone)]
 pub struct Attachment {
 	pub name: String,
 	pub mime_type: String,
@@ -12,6 +13,7 @@ pub struct Attachment {
 	pub len: u64,
 }
 
+#[derive(Debug, Clone)]
 pub enum DbusNotification {
 	MmsStatusUpdate {
 		id: String,

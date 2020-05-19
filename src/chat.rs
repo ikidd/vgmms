@@ -30,7 +30,10 @@ pub enum UiMessageChat {
 
 fn with_attachment<T, F: FnOnce(&[u8]) -> T>(path: &Path, f: F) -> Result<T, std::io::Error> {
 	use memmap::MmapOptions;
-	let file = std::fs::File::open(path)?;
+	use std::fs::OpenOptions;
+	let file = OpenOptions::new()
+		.read(true)
+		.write(true).open(path)?;
 	let mmap = unsafe { MmapOptions::new().map_mut(&file)? };
 	let mmap = mmap.make_read_only()?;
 	Ok(f(&*mmap))

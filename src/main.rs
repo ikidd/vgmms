@@ -416,7 +416,13 @@ impl Component for InputBoxModel {
 				}
 				for path in self.file_paths.drain(..) {
 					let filename = path.file_name().unwrap_or_default().into();
-					let size = 4500; //TODO
+					let size = match path.metadata() {
+						Ok(meta) => meta.len(),
+						Err(e) => {
+							eprintln!("could not stat file: {}", path.display());
+							continue
+						},
+					};
 					let att = Attachment {
 						name: filename,
 						mime_type: "image/png".into(),

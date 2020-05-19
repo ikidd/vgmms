@@ -1,8 +1,3 @@
-#[derive(Clone, Debug)]
-pub enum AttachmentData {
-	FileRef(std::path::PathBuf, u64, u64),
-}
-
 /**
   attachments are owned by the message that contains them. attachments on disk
 */
@@ -10,8 +5,7 @@ pub enum AttachmentData {
 pub struct Attachment {
 	pub name: std::ffi::OsString,
 	pub mime_type: String,
-	pub size: u64,
-	pub data: AttachmentData,
+	pub data: (std::path::PathBuf, u64, u64),
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]

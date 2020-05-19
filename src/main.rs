@@ -115,8 +115,7 @@ impl VgmmsState {
 					let att = Attachment {
 						name: OsString::from(att.name),
 						mime_type: att.mime_type,
-						size: att.len,
-						data: AttachmentData::FileRef(att.disk_path, att.start, att.len),
+						data: (att.disk_path, att.start, att.len),
 					};
 					self.attachments.insert(id, att);
 					contents.push(MessageItem::Attachment(id));

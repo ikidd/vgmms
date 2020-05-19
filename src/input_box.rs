@@ -122,8 +122,7 @@ impl Component for InputBoxModel {
 					let att = Attachment {
 						name: filename,
 						mime_type: tree_magic::from_filepath(&path),
-						size: size,
-						data: AttachmentData::FileRef(path, 0, size),
+						data: (path, 0, size),
 					};
 					items.push(DraftItem::Attachment(att));
 				}

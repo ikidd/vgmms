@@ -66,7 +66,7 @@ impl ChatModel {
 					MessageItem::Attachment(ref id) => {
 						let att = state.attachments.get(id).expect("attachment not found!");
 						if att.mime_type.starts_with("image/") {
-							let AttachmentData::FileRef(ref path, start, len) = att.data;
+							let (ref path, start, len) = att.data;
 							match with_attachment(path, |data|
 								load_image(&data[start as usize..(start+len) as usize], 200, 200)) {
 								Ok(Ok(pixbuf)) => gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> },

@@ -42,6 +42,17 @@ fn read_file_chunk(path: &std::path::Path, start: u64, len: u64) -> Result<Vec<u
 	Ok(out)
 }
 
+fn parse_date(date: &str) -> chrono::format::ParseResult<u64> {
+	match chrono::DateTime::parse_from_rfc3339(&date) {
+		Err(e) if e.to_string().contains("invalid") => {
+			let mut date = date.to_owned();
+			date.insert(date.len()-2, ':');
+			chrono::DateTime::parse_from_rfc3339(&date)
+		},
+		x => x,
+	}.map(|x| x.timestamp() as u64)
+}
+
 impl VgmmsState {
 	pub fn next_message_id(&mut self) -> MessageId {
 		let id = self.next_message_id;
@@ -81,7 +92,7 @@ impl VgmmsState {
 				recipients, attachments,
 				smil: _,
 			} => {
-				let date = match chrono::DateTime::parse_from_rfc3339(&date) {
+				let date = match parse_date(&date) {
 					Ok(d) => d,
 					Err(e) => {
 						eprintln!("cannot parse timestamp {}: {}", date, e);
@@ -115,7 +126,7 @@ impl VgmmsState {
 					self.messages.insert(id, MessageInfo {
 						sender: num,
 						recipients: recipients.iter().filter_map(|r| Number::from_str(&*r, ())).collect(),
-						time: date.timestamp() as u64,
+						time: date,
 						contents: contents,
 						status: MessageStatus::Received,
 					});
@@ -126,7 +137,7 @@ impl VgmmsState {
 			SmsReceived {
 				message, date, sender,
 			} => {
-				let date = match chrono::DateTime::parse_from_rfc3339(&date) {
+				let date = match parse_date(&date) {
 					Ok(d) => d,
 					Err(e) => {
 						eprintln!("cannot parse timestamp {}: {}", date, e);
@@ -138,7 +149,7 @@ impl VgmmsState {
 					self.messages.insert(id, MessageInfo {
 						sender: num,
 						recipients: vec![self.my_number],
-						time: date.timestamp() as u64,
+						time: date,
 						contents: vec![MessageItem::Text(message)],
 						status: MessageStatus::Received,
 					});

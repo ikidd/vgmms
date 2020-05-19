@@ -14,7 +14,7 @@ pub struct Attachment {
 	pub data: AttachmentData,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Number {
 	num: u64,
 }
@@ -70,7 +70,7 @@ pub enum MessageStatus {
 #[derive(Clone, Debug)]
 pub struct MessageInfo {
 	pub sender: Number,
-	pub recipients: Vec<Number>,
+	pub chat: Vec<Number>,
 	pub time: u64,
 	pub contents: Vec<MessageItem>,
 	pub status: MessageStatus,

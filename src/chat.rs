@@ -47,7 +47,7 @@ fn load_image(data: &[u8], width: i32, height: i32) -> Result<Pixbuf, glib::Erro
 impl ChatModel {
 	fn generate_log_widgets<'a>(&'a self, state: &'a VgmmsState) -> impl Iterator<Item=VNode<Self>> + 'a {
 		state.messages.iter().filter_map(move |(_id, msg)| {
-			if msg.recipients != self.chat.numbers {
+			if msg.chat != self.chat.numbers {
 				return None
 			}
 			let (align, halign) = match msg.status {
@@ -131,7 +131,7 @@ impl Component for ChatModel {
 					let num = state.my_number;
 					state.messages.insert(id, MessageInfo {
 						sender: num,
-						recipients: self.chat.numbers.clone(),
+						chat: self.chat.numbers.clone(),
 						time: chrono::offset::Local::now().timestamp() as u64,
 						contents: items,
 						status: MessageStatus::Sending,

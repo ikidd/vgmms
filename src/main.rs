@@ -92,7 +92,7 @@ impl VgmmsState {
 				recipients, attachments,
 				smil: _,
 			} => {
-				let date = match parse_date(&date) {
+				let time = match parse_date(&date) {
 					Ok(d) => d,
 					Err(e) => {
 						eprintln!("cannot parse timestamp {}: {}", date, e);
@@ -122,12 +122,16 @@ impl VgmmsState {
 					contents.push(MessageItem::Attachment(id));
 				}
 				contents.insert(0, MessageItem::Text(text));
-				if let Some(num) = Number::from_str(&*sender, ()) {
+				
+				if let Some(sender) = Number::from_str(&*sender, ()) {
+					let mut chat: Vec<_> = recipients.iter().filter_map(|r| Number::from_str(&*r, ())).collect();
+					chat.push(sender);
+					chat.sort();
 					self.messages.insert(id, MessageInfo {
-						sender: num,
-						recipients: recipients.iter().filter_map(|r| Number::from_str(&*r, ())).collect(),
-						time: date,
-						contents: contents,
+						sender,
+						chat,
+						time,
+						contents,
 						status: MessageStatus::Received,
 					});
 				} else {
@@ -137,19 +141,21 @@ impl VgmmsState {
 			SmsReceived {
 				message, date, sender,
 			} => {
-				let date = match parse_date(&date) {
+				let time = match parse_date(&date) {
 					Ok(d) => d,
 					Err(e) => {
 						eprintln!("cannot parse timestamp {}: {}", date, e);
 						return
 					},
 				};
-				if let Some(num) = Number::from_str(&*sender, ()) {
+				if let Some(sender) = Number::from_str(&*sender, ()) {
+					let mut chat = vec![sender, self.my_number];
+					chat.sort();
 					let id = self.next_message_id();
 					self.messages.insert(id, MessageInfo {
-						sender: num,
-						recipients: vec![self.my_number],
-						time: date,
+						sender,
+						chat,
+						time,
 						contents: vec![MessageItem::Text(message)],
 						status: MessageStatus::Received,
 					});
@@ -165,11 +171,14 @@ impl VgmmsState {
 
 impl Default for VgmmsState {
 	fn default() -> Self {
+		let my_number = Number::new(4561237890);
+
 		let mut map = std::collections::HashMap::new();
-		let nums = vec![Number::new(41411)];
+		let nums = vec![Number::new(41411), my_number];
 		map.insert(nums.clone(), Chat {numbers: nums.clone()});
-		let nums = vec![Number::new(1238675309)];
+		let nums = vec![Number::new(1238675309), my_number];
 		map.insert(nums.clone(), Chat {numbers: nums.clone()});
+
 		VgmmsState {
 			chats: map,
 			messages: Default::default(),
@@ -177,7 +186,7 @@ impl Default for VgmmsState {
 			attachments: Default::default(),
 			next_message_id: {let mut id = [0u8; 20]; id[19] = 1; id},
 			next_attachment_id: 1,
-			my_number: Number::new(4561237890),
+			my_number,
 		}
 	}
 }

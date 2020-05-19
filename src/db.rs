@@ -91,6 +91,15 @@ pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) 
 	)
 }
 
+pub fn insert_attachment(conn: &mut Connection, id: &AttachmentId, att: &Attachment) -> rusqlite::Result<usize> {
+	use std::os::unix::ffi::OsStrExt;
+	conn.execute(
+		"INSERT INTO attachments (id, name, mime_type, path, start, len) VALUES (?1, ?2, ?3, ?4, ?5, ?6);",
+		params![*id as i64, att.name.as_bytes(), att.mime_type,
+			att.data.0.as_os_str().as_bytes(), att.data.1 as i64, att.data.2 as i64],
+	)
+}
+
 pub struct Query<'a>(rusqlite::Statement<'a>);
 
 impl<'a> Query<'a> {

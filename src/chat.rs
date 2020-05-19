@@ -128,6 +128,9 @@ impl Component for ChatModel {
 						DraftItem::Attachment(att) =>
 							MessageItem::Attachment({
 								let id = state.next_attachment_id();
+								if let Err(e) = db::insert_attachment(&mut state.db_conn, &id, &att) {
+									eprintln!("error saving attachment to database: {}", e);
+								}
 								state.attachments.insert(id, att);
 								id
 							}),

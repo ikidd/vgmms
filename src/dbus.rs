@@ -16,11 +16,11 @@ pub struct Attachment {
 #[derive(Debug, Clone)]
 pub enum DbusNotification {
 	MmsStatusUpdate {
-		id: String,
+		id: [u8; 20],
 		status: ()/*MmsStatus*/,
 	},
 	MmsReceived {
-		id: String,
+		id: [u8; 20],
 		date: String,
 		subject: Option<String>,
 		sender: String,
@@ -37,6 +37,7 @@ pub enum DbusNotification {
 
 #[derive(Debug)]
 pub enum ParseError {
+	BadMmsPath,
 	BadArgs,
 	BadSenderOrSentTime,
 	BadAttachments,
@@ -120,6 +121,13 @@ fn parse_recipients<'a>(v: &'a(dyn dbus::arg::RefArg + 'static)) -> Result<Vec<S
 fn parse_mms_message(msg: &dbus::Message) -> Result<DbusNotification, ParseError> {
 	use dbus::arg::*;
 	if let (Some(path), Some(dict)) = msg.get2::<dbus::Path, Dict<&str, Variant<Box<dyn RefArg>>, _>>() {
+		if path.len() < 40 {
+			return Err(ParseError::BadMmsPath);
+		}
+		let mut mms_id = [0u8; 20];
+		if let Err(_) = hex::decode_to_slice(&path[path.len()-40..], &mut mms_id) {
+			return Err(ParseError::BadMmsPath);
+		}
 		let (mut sender, mut date, mut subject, mut recipients, mut attachments, mut smil) =
 			(None, None, None, None, None, None);
 		for (k, v) in dict {
@@ -138,7 +146,7 @@ fn parse_mms_message(msg: &dbus::Message) -> Result<DbusNotification, ParseError
 		if let (Some(sender), Some(date), Some(recipients), Some(attachments)) =
 			(sender, date, recipients, attachments) {
 			Ok(MmsReceived {
-				id: path.to_string(),
+				id: mms_id,
 				date: date,
 				subject: subject,
 				sender: sender,

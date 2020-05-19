@@ -61,7 +61,7 @@ struct Attachment {
 }
 
 type AttachmentId = usize;
-type MessageId = usize;
+type MessageId = [u8; 20];
 
 #[derive(Clone, Debug)]
 enum MessageItem {
@@ -128,7 +128,7 @@ struct VgmmsState {
 	messages: BTreeMap<MessageId, MessageInfo>,
 	contacts: HashMap<Number, Contact>,
 	attachments: HashMap<AttachmentId, Attachment>,
-	next_message_id: usize,
+	next_message_id: MessageId,
 	next_attachment_id: usize,
 	my_number: Number,
 }
@@ -144,9 +144,19 @@ fn read_file_chunk(path: &std::path::Path, start: u64, len: u64) -> Result<Vec<u
 }
 
 impl VgmmsState {
-	pub fn next_message_id(&mut self) -> usize {
+	pub fn next_message_id(&mut self) -> MessageId {
 		let id = self.next_message_id;
-		self.next_message_id += 1;
+
+		/* bytewise increment */
+		let mut carry = true;
+		for byte in self.next_message_id.iter_mut().rev() {
+			*byte += carry as u8;
+			if *byte == 0 && carry {
+				continue
+			}
+			break
+		}
+
 		id
 	}
 
@@ -251,7 +261,7 @@ impl Default for VgmmsState {
 			messages: Default::default(),
 			contacts: Default::default(),
 			attachments: Default::default(),
-			next_message_id: 4321,
+			next_message_id: {let mut id = [0u8; 20]; id[19] = 1; id},
 			next_attachment_id: 1,
 			my_number: Number::new(4561237890),
 		}

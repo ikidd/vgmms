@@ -189,6 +189,13 @@ impl Default for VgmmsState {
 		let mut conn = db::connect().unwrap();
 		let _ = db::create_tables(&mut conn);
 
+		let next_message_id = match db::get_next_message_id(&mut conn) {
+			Ok(id) => id,
+			_ => {
+				let mut id = [0u8; 20]; id.increment(); id
+			},
+		};
+
 		{
 			let mut q = db::Query::new(&mut conn).unwrap();
 
@@ -210,7 +217,7 @@ impl Default for VgmmsState {
 			messages,
 			contacts: Default::default(),
 			attachments: Default::default(),
-			next_message_id: {let mut id = [0u8; 20]; id[19] = 1; id},
+			next_message_id,
 			next_attachment_id: 1,
 			my_number,
 			db_conn: conn,

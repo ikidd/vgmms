@@ -88,6 +88,19 @@ impl<'a> Query<'a> {
 	}
 }
 
+pub fn get_next_message_id(conn: &mut Connection) -> rusqlite::Result<MessageId> {
+	let mut stmt = conn.prepare("SELECT max(id) FROM messages")?;
+	let mut iter = stmt.query_map(params![], |row| {
+		if let Ok(mut id) = crate::db::get::get_id(row, 0) {
+			id.increment();
+			Ok(id)
+		} else {
+			Err(rusqlite::Error::InvalidColumnType(0, "Vec<Number>".into(), rusqlite::types::Type::Blob))
+		}
+	})?;
+	iter.next().unwrap()
+}
+
 pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl Iterator<Item=rusqlite::Result<(MessageId, MessageInfo)>> + 'a, String>> {
 	use crate::db::get::*;
 

@@ -23,28 +23,39 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 			status INTEGER
 		)", params![])?;
 	conn.execute(
+		"CREATE TABLE attachments (
+			id INTEGER PRIMARY KEY,
+			name STRING,
+			mime_type STRING,
+			path STRING,
+			start INTEGER,
+			len INTEGER
+		)", params![])?;
+/* red.png:
+89504e470d0a1a0a0000000d4948445200000064
+0000006401030000004a2c071700000003504c54
+4592000059ed5144000000134944415418196318
+05a360148c82514057000005780001dc45021b00
+00000049454e44ae426082
+*/
+	conn.execute(
+		"INSERT INTO attachments (id, name, mime_type, path, start, len)
+		VALUES (4, 'red.png', 'image/png', '/tmp/red.png', 0, 91)
+		;", params![])?;
+	conn.execute(
 		"INSERT INTO messages (id, sender, chat, time, contents, status)
 		VALUES (X'0000001234567890e1000a0400d0000050000003', 41411, X'c3a100000000000082f7de0f01000000', 1589921285, X'7468656c6c6f00', 0)
 		;", params![])?;
 	conn.execute(
 		"INSERT INTO messages (id, sender, chat, time, contents, status)
-		VALUES (X'0000000000567833333055500000000000000008', 41411, X'c3a100000000000082f7de0f01000000', 1589921299, X'7468656c6c00', 0)
+		VALUES (X'0000000000567833333055500000000000000008', 41411, X'c3a100000000000082f7de0f01000000', 1589921299, X'610400000000000000', 0)
 		;", params![])
 }
 
 /*
-		CREATE TABLE attachments (
-			id INTEGER PRIMARY KEY,
-			name BLOB,
-			mime_type STRING,
-			start INTEGER,
-			len INTEGER
-		)
-
 		CREATE TABLE chats (
 			numbers BLOB
 		)
-
 */
 
 pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) -> rusqlite::Result<usize> {
@@ -117,6 +128,34 @@ pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl
 	})?;
 
 	Ok(Ok(message_iter))
+}
+
+use std::collections::HashMap;
+
+pub fn get_all_attachments(conn: &mut Connection) -> rusqlite::Result<HashMap<AttachmentId, Attachment>> {
+	use crate::db::get::*;
+
+	let mut q = conn.prepare("SELECT id, name, mime_type, path, start, len FROM attachments")?;
+
+	let att_iter = q.query_map(params![], |row| {
+		let id: AttachmentId = get_u64(row, 0)?;
+		let att = Attachment {
+			name: std::ffi::OsString::from(row.get::<_, String>(1)?),
+			mime_type: row.get::<_, String>(2)?,
+			data: (
+				row.get::<_, String>(3)?.into(),
+				get_u64(row, 4)?,
+				get_u64(row, 5)?,
+			),
+		};
+		Ok((id, att))
+	})?;
+
+	Ok(att_iter
+		.inspect(|x| if let Err(e) = x {
+			eprintln!("error loading attachment: {}", e)
+		})
+		.filter_map(Result::ok).collect())
 }
 
 mod get {

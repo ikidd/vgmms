@@ -212,11 +212,13 @@ impl Default for VgmmsState {
 			}
 		}
 
+		let attachments = db::get_all_attachments(&mut conn).unwrap();
+
 		VgmmsState {
 			chats: map,
 			messages,
 			contacts: Default::default(),
-			attachments: Default::default(),
+			attachments,
 			next_message_id,
 			next_attachment_id: 1,
 			my_number,

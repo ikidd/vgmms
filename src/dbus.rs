@@ -2,12 +2,14 @@ use dbus::blocking::Connection;
 use dbus::message::MatchRule;
 use std::time::Duration;
 
+use std::path::PathBuf;
+
 pub struct Attachment {
-	name: String,
-	mime_type: String,
-	disk_path: String,
-	start: u64,
-	len: u64,
+	pub name: String,
+	pub mime_type: String,
+	pub disk_path: PathBuf,
+	pub start: u64,
+	pub len: u64,
 }
 
 pub enum DbusNotification {
@@ -81,7 +83,7 @@ fn parse_attachments<'a>(v: &'a(dyn dbus::arg::RefArg + 'static)) -> Result<Vec<
 
 			let name = att_fields.next()?.as_str()?.to_owned();
 			let mime_type = att_fields.next()?.as_str()?.to_owned();
-			let disk_path = att_fields.next()?.as_str()?.to_owned();
+			let disk_path = att_fields.next()?.as_str()?.to_owned().into();
 			let start = att_fields.next()?.as_u64()?;
 			let len = att_fields.next()?.as_u64()?;
 			atts.push(Attachment {
@@ -157,8 +159,7 @@ pub fn start() -> impl futures::Stream<Item=DbusNotification> {
 	let mut sess_conn = Connection::new_session().expect("DBus connection failed");
 	let mut sys_conn = Connection::new_system().expect("DBus connection failed");
 
-	let mut sms_recv_rule = MatchRule::new_signal("org.ofono.MessageManager", "IncomingMessage");
-	//sms_recv_rule.eavesdrop = true;
+	let sms_recv_rule = MatchRule::new_signal("org.ofono.MessageManager", "IncomingMessage");
 	let mut mms_recv_rule = MatchRule::new_signal("org.ofono.mms.Service", "MessageAdded");
 	mms_recv_rule.eavesdrop = true;
 

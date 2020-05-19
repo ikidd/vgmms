@@ -51,7 +51,7 @@ enum UiMessageTriv {
 #[derive(Clone, Debug)]
 enum AttachmentData {
 	Inline(Vec<u8>),
-	FilePath(PathBuf),
+	FileRef(PathBuf, u64, u64),
 }
 
 /**
@@ -59,7 +59,7 @@ enum AttachmentData {
 */
 #[derive(Clone, Debug)]
 struct Attachment {
-	filename: OsString,
+	name: OsString,
 	mime_type: String,
 	size: u64,
 	data: AttachmentData,
@@ -138,6 +138,96 @@ struct VgmmsState {
 	next_attachment_id: usize,
 	my_number: Number,
 }
+
+fn read_file_chunk(path: &std::path::Path, start: u64, len: u64) -> Result<Vec<u8>, std::io::Error> {
+	use std::io::{Read, Seek, SeekFrom};
+
+	let mut file = std::fs::File::open(path)?;
+	file.seek(SeekFrom::Start(start))?;
+	let mut out = vec![0; len as usize];
+	file.read_exact(&mut out[..])?;
+	Ok(out)
+}
+
+impl VgmmsState {
+	pub fn next_message_id(&mut self) -> usize {
+		let id = self.next_message_id;
+		self.next_message_id += 1;
+		id
+	}
+
+	pub fn next_attachment_id(&mut self) -> usize {
+		let id = self.next_attachment_id;
+		self.next_attachment_id += 1;
+		id
+	}
+
+	pub fn handle_notif(&mut self, notif: dbus::DbusNotification) {
+		use self::dbus::DbusNotification::*;
+		match notif {
+			MmsStatusUpdate {
+				id, status
+			} => (),
+			MmsReceived {
+				id, date, subject, sender,
+				recipients, attachments,
+				smil,
+			} => {
+				let mut contents = vec![];
+				let mut text = String::new();
+				for att in attachments {
+					if att.mime_type.starts_with("text/plain") {
+						/* fall back to remembering its attachment if we fail to read text from MMS file */
+						if let Ok(new_text) = read_file_chunk(&att.disk_path, att.start, att.len) {
+							let read = String::from_utf8_lossy(&*new_text);
+							text.push_str(&*read);
+							continue;
+						}
+					}
+
+					let id = self.next_attachment_id();
+					let att = Attachment {
+						name: OsString::from(att.name),
+						mime_type: att.mime_type,
+						size: att.len,
+						data: AttachmentData::FileRef(att.disk_path, att.start, att.len),
+					};
+					self.attachments.insert(id, att);
+					contents.push(MessageItem::Attachment(id));
+				}
+				contents.insert(0, MessageItem::Text(text));
+				if let Some(num) = Number::from_str(&*sender, ()) {
+					let id = self.next_message_id();
+					self.messages.insert(id, MessageInfo {
+						sender: num,
+						time: 0/*date.parse()*/,
+						contents: contents,
+						status: MessageStatus::Received,
+					});
+				} else {
+					eprintln!("cannot parse number: {}", sender);
+				}
+			},
+			SmsReceived {
+				message, date, sender,
+			} => {
+				if let Some(num) = Number::from_str(&*sender, ()) {
+					let id = self.next_message_id();
+					self.messages.insert(id, MessageInfo {
+						sender: num,
+						time: 0/*date.parse()*/,
+						contents: vec![MessageItem::Text(message)],
+						status: MessageStatus::Received,
+					});
+				} else {
+					eprintln!("cannot parse number: {}", sender);
+				}
+			}
+		}
+	}
+}
+
+//fn ensure_chat_for(&mut self, recipients: ) -> 
 
 impl Default for VgmmsState {
 	fn default() -> Self {
@@ -301,11 +391,12 @@ impl Component for InputBoxModel {
 				}
 				for path in self.file_paths.drain(..) {
 					let filename = path.file_name().unwrap_or_default().into();
+					let size = 4500; //TODO
 					let att = Attachment {
-						filename: filename,
+						name: filename,
 						mime_type: "image/png".into(),
-						size: 4500,
-						data: AttachmentData::FilePath(path),
+						size: size,
+						data: AttachmentData::FileRef(path, 0, size),
 					};
 					items.push(DraftItem::Attachment(att));
 				}
@@ -424,7 +515,7 @@ impl ChatModel {
 					MessageItem::Attachment(ref id) => {
 						let att = state.attachments.get(id).expect("attachment not found!");
 						if true /*mime_type_is_image(att.mime_type)*/ {
-							if let AttachmentData::FilePath(ref path) = att.data {
+							if let AttachmentData::FileRef(ref path, start, len) = att.data {
 								/*gtk! { <Image file=path /> }*/
 								if let Ok(pixbuf) = Pixbuf::new_from_file_at_size(path, 200, 200) {
 									gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> }
@@ -477,9 +568,8 @@ impl Component for ChatModel {
 					draft_items.into_iter().map(|item| match item {
 						DraftItem::Attachment(att) =>
 							MessageItem::Attachment({
-								let id = state.next_attachment_id;
+								let id = state.next_attachment_id();
 								state.attachments.insert(id, att);
-								state.next_attachment_id += 1;
 								id
 							}),
 						DraftItem::Text(t) => MessageItem::Text(t),
@@ -488,7 +578,7 @@ impl Component for ChatModel {
 				};
 				let id = {
 					let mut state = self.state.write().unwrap();
-					let id = state.next_message_id;
+					let id = state.next_message_id();
 					let num = state.my_number;
 					state.messages.insert(id, MessageInfo {
 						sender: num,
@@ -496,7 +586,6 @@ impl Component for ChatModel {
 						contents: items,
 						status: MessageStatus::Sending,
 					});
-					state.next_message_id += 1;
 					id
 				};
 				let fut = async move {

@@ -15,93 +15,13 @@ use std::boxed::Box;
 use std::ffi::OsString;
 
 mod dbus;
+mod types;
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
-struct Number {
-	num: u64,
-}
-
-impl Number {
-	pub fn new(n: u64) -> Self {
-		Number { num: n }
-	}
-	pub fn same(&self, other: &str) -> bool {
-		other == self.to_string()
-	}
-
-	pub fn to_string(&self) -> String {
-		self.num.to_string()
-	}
-
-	pub fn from_str(s: &str, _settings: ()) -> Option<Number> {
-		Some(Number { num: s.parse().ok()? })
-	}
-}
+use types::*;
 
 #[derive(Clone, Default)]
 struct Model {
 	state: Arc<RwLock<VgmmsState>>,
-}
-
-#[derive(Clone, Debug)]
-enum AttachmentData {
-	Inline(Vec<u8>),
-	FileRef(PathBuf, u64, u64),
-}
-
-/**
-  attachments are owned by the message that contains them. attachments on disk
-*/
-#[derive(Clone, Debug)]
-struct Attachment {
-	name: OsString,
-	mime_type: String,
-	size: u64,
-	data: AttachmentData,
-}
-
-type AttachmentId = usize;
-type MessageId = [u8; 20];
-
-#[derive(Clone, Debug)]
-enum MessageItem {
-	Text(String),
-	Attachment(AttachmentId),
-}
-
-#[derive(Clone, Debug)]
-enum DraftItem {
-	Text(String),
-	Attachment(Attachment),
-}
-
-#[derive(Clone, Debug)]
-struct Contact {
-	number: Number,
-	name: String,
-}
-
-#[derive(Clone, Debug)]
-enum MessageStatus {
-	Received,
-	Draft,
-	Sending,
-	Sent,
-	Failed,
-}
-
-#[derive(Clone, Debug)]
-struct MessageInfo {
-	sender: Number,
-	recipients: Vec<Number>,
-	time: u64,
-	contents: Vec<MessageItem>,
-	status: MessageStatus,
-}
-
-#[derive(Clone, Debug, Default)]
-struct Chat {
-	numbers: Vec<Number>,
 }
 
 #[derive(Clone, Debug)]
@@ -557,7 +477,7 @@ impl ChatModel {
 			let widget_content = msg.contents.iter().map(|item| {
 				match item {
 					MessageItem::Text(ref t) => {
-						let text = format!("[{}] {}: {}", msg.time, msg.sender.num, t);
+						let text = format!("[{}] {}: {}", msg.time, msg.sender.to_string(), t);
 						gtk! { <Label label=text line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=align /> }
 					},
 					MessageItem::Attachment(ref id) => {

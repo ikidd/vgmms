@@ -1,6 +1,5 @@
 #[derive(Clone, Debug)]
 pub enum AttachmentData {
-	Inline(Vec<u8>),
 	FileRef(std::path::PathBuf, u64, u64),
 }
 

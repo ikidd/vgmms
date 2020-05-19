@@ -30,7 +30,7 @@ impl Number {
 	}
 }
 
-pub type AttachmentId = usize;
+pub type AttachmentId = u64;
 pub type MessageId = [u8; 20];
 
 #[derive(Clone, Debug)]
@@ -83,6 +83,6 @@ pub struct VgmmsState {
 	pub contacts: HashMap<Number, Contact>,
 	pub attachments: HashMap<AttachmentId, Attachment>,
 	pub next_message_id: MessageId,
-	pub next_attachment_id: usize,
+	pub next_attachment_id: AttachmentId,
 	pub my_number: Number,
 }

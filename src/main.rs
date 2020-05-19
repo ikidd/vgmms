@@ -69,7 +69,7 @@ impl VgmmsState {
 		id
 	}
 
-	pub fn next_attachment_id(&mut self) -> usize {
+	pub fn next_attachment_id(&mut self) -> AttachmentId {
 		let id = self.next_attachment_id;
 		self.next_attachment_id += 1;
 		id

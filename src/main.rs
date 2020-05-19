@@ -207,7 +207,7 @@ impl VgmmsState {
 						status: MessageStatus::Received,
 					});
 				} else {
-					eprintln!("cannot parse number: {}", sender);
+					eprintln!("cannot parse number {}", sender);
 				}
 			},
 			SmsReceived {
@@ -230,7 +230,7 @@ impl VgmmsState {
 						status: MessageStatus::Received,
 					});
 				} else {
-					eprintln!("cannot parse number: {}", sender);
+					eprintln!("cannot parse number {}", sender);
 				}
 			}
 		}

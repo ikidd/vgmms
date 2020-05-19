@@ -121,11 +121,11 @@ enum UiMessage {
 	Exit,
 }
 
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 struct VgmmsState {
 	chats: HashMap<Vec<Number>, Chat>,
-	messages: HashMap<MessageId, MessageInfo>,
+	messages: BTreeMap<MessageId, MessageInfo>,
 	contacts: HashMap<Number, Contact>,
 	attachments: HashMap<AttachmentId, Attachment>,
 	next_message_id: usize,

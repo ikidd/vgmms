@@ -167,6 +167,13 @@ impl VgmmsState {
 				recipients, attachments,
 				smil: _,
 			} => {
+				let date = match chrono::DateTime::parse_from_rfc3339(&date) {
+					Ok(d) => d,
+					Err(e) => {
+						eprintln!("cannot parse timestamp {}: {}", date, e);
+						return
+					},
+				};
 				let mut contents = vec![];
 				let mut text = String::new();
 				for att in attachments {
@@ -195,7 +202,7 @@ impl VgmmsState {
 					self.messages.insert(id, MessageInfo {
 						sender: num,
 						recipients: recipients.iter().filter_map(|r| Number::from_str(&*r, ())).collect(),
-						time: 0/*date.parse()*/,
+						time: date.timestamp() as u64,
 						contents: contents,
 						status: MessageStatus::Received,
 					});
@@ -206,12 +213,19 @@ impl VgmmsState {
 			SmsReceived {
 				message, date, sender,
 			} => {
+				let date = match chrono::DateTime::parse_from_rfc3339(&date) {
+					Ok(d) => d,
+					Err(e) => {
+						eprintln!("cannot parse timestamp {}: {}", date, e);
+						return
+					},
+				};
 				if let Some(num) = Number::from_str(&*sender, ()) {
 					let id = self.next_message_id();
 					self.messages.insert(id, MessageInfo {
 						sender: num,
 						recipients: vec![self.my_number],
-						time: 0/*date.parse()*/,
+						time: date.timestamp() as u64,
 						contents: vec![MessageItem::Text(message)],
 						status: MessageStatus::Received,
 					});
@@ -618,7 +632,7 @@ impl Component for ChatModel {
 					state.messages.insert(id, MessageInfo {
 						sender: num,
 						recipients: self.chat.numbers.clone(),
-						time: 0,
+						time: chrono::offset::Local::now().timestamp() as u64,
 						contents: items,
 						status: MessageStatus::Sending,
 					});

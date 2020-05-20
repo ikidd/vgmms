@@ -101,6 +101,15 @@ pub struct Chat {
 	pub numbers: Vec<Number>,
 }
 
+impl Chat {
+	pub fn get_name(&self, my_number: &Number) -> String {
+		self.numbers.iter()
+			.filter(|x| x != &my_number)
+			.map(|x| x.to_string())
+			.collect::<Vec<_>>().join(" ")
+	}
+}
+
 use std::collections::{BTreeMap, HashMap};
 
 pub struct VgmmsState {

@@ -27,7 +27,7 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 			id INTEGER PRIMARY KEY,
 			name BLOB,
 			mime_type STRING,
-			path STRING,
+			path BLOB,
 			start INTEGER,
 			len INTEGER
 		)", params![])?;
@@ -40,7 +40,7 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 */
 	conn.execute(
 		"INSERT INTO attachments (id, name, mime_type, path, start, len)
-		VALUES (4, X'7265642e706e67', 'image/png', '/tmp/red.png', 0, 91)
+		VALUES (4, X'7265642e706e67', 'image/png', X'2f746d702f7265642e706e67', 0, 91)
 		;", params![])?;
 	conn.execute(
 		"INSERT INTO messages (id, sender, chat, time, contents, status)
@@ -161,11 +161,12 @@ pub fn get_all_attachments(conn: &mut Connection) -> rusqlite::Result<HashMap<At
 	let att_iter = q.query_map(params![], |row| {
 		let id: AttachmentId = get_u64(row, 0)?;
 		use std::os::unix::ffi::OsStringExt;
+		let path: std::ffi::OsString = OsStringExt::from_vec(row.get(3)?);
 		let att = Attachment {
 			name: OsStringExt::from_vec(row.get(1)?),
 			mime_type: row.get::<_, String>(2)?,
 			data: (
-				row.get::<_, String>(3)?.into(),
+				path.into(),
 				get_u64(row, 4)?,
 				get_u64(row, 5)?,
 			),

@@ -23,6 +23,8 @@ mod smil;
 /* dbus interfaces */
 mod mmsd_manager;
 mod mmsd_service;
+mod ofono_manager;
+mod ofono_simmanager;
 
 use chat::*;
 use types::*;

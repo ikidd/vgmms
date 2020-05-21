@@ -171,6 +171,45 @@ use std::collections::HashMap;
 
 use crate::types::{MessageItem, MessageInfo};
 
+pub fn get_my_number(/*sys_conn: &mut Connection, */
+	modem_path: &dbus::strings::Path) -> Result<Option<String>, dbus::Error> {
+	let mut conn = SYS_CONN.lock().unwrap();
+	let conn = conn.get_mut();
+	let sim_proxy = conn.with_proxy("org.ofono", modem_path, Duration::from_millis(500));
+	use crate::ofono_simmanager::OrgOfonoSimManager;
+	let dict = sim_proxy.get_properties()?;
+	let mut nums = None;
+	for (k, v) in dict {
+		if let "SubscriberNumbers" = &*k {
+			 if let Ok(ns) = parse_numbers(&v) {
+				nums = Some(ns)
+			}
+		}
+	}
+
+	let nums = match nums {
+		Some(ns) => ns,
+		None => return Ok(None),
+	};
+
+	Ok(if let [num] = &*nums {
+		Some(num.to_owned())
+	} else {
+		eprintln!("expected 1 subscriber number, found {}", nums.len());
+		None
+	})
+}
+
+pub fn get_modem_paths(/*sys_conn: &mut Connection*/) -> Result<Vec<dbus::strings::Path<'static>>, dbus::Error> {
+	let mut conn = SYS_CONN.lock().unwrap();
+	let conn = conn.get_mut();
+	let man_proxy = conn.with_proxy("org.ofono", "/", Duration::from_millis(500));
+	use crate::ofono_manager::OrgOfonoManager;
+	let modems = man_proxy.get_modems()?;
+	let paths = modems.iter().map(|m| m.0.to_owned()).collect();
+	Ok(paths)
+}
+
 pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
 	msg: &MessageInfo,
 	atts: &HashMap<crate::types::AttachmentId, crate::types::Attachment>) -> Result<Option<dbus::strings::Path<'static>>, dbus::Error> {

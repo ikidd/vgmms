@@ -101,18 +101,17 @@ fn parse_attachments<'a>(v: &'a(dyn dbus::arg::RefArg + 'static)) -> Result<Vec<
 	}
 }
 
-//v.as_any().downcast_ref::<Vec<String>>().map(|x| x.clone())
-fn parse_recipients<'a>(v: &'a(dyn dbus::arg::RefArg + 'static)) -> Result<Vec<String>, ParseError> {
+fn parse_numbers<'a>(v: &'a(dyn dbus::arg::RefArg + 'static)) -> Result<Vec<String>, ParseError> {
 	match || -> Option<Vec<String>> {
-		let mut recs = vec![];
+		let mut nums = vec![];
 		//descend into variant
 		let mut v = v.as_iter()?;
-		//descend into array of attachments
+		//descend into array of numbers
 		let v = v.next()?.as_iter()?;
-		for rec in v {
-			recs.push(rec.as_str()?.to_owned())
+		for num in v {
+			nums.push(num.as_str()?.to_owned())
 		}
-		Some(recs)
+		Some(nums)
 	}() {
 		None => Err(ParseError::BadRecipients),
 		Some(x) => Ok(x)
@@ -138,7 +137,7 @@ fn parse_mms_message(msg: &dbus::Message) -> Result<DbusNotification, ParseError
 				"Sender" => sender = v.as_str().map(|x| x.to_owned()),
 				"Date" => date = v.as_str().map(|x| x.to_owned()),
 				"Subject" => subject = v.as_str().map(|x| x.to_owned()),
-				"Recipients" => recipients = Some(parse_recipients(&v)?),
+				"Recipients" => recipients = Some(parse_numbers(&v)?),
 				"Attachments" => attachments = Some(parse_attachments(&v)?),
 				"Smil" => smil = v.as_str().map(|x| x.to_owned()),
 				_ => (),

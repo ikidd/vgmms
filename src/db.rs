@@ -30,7 +30,7 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 			path BLOB,
 			start INTEGER,
 			len INTEGER
-		)", params![])?;
+		)", params![])
 /* red.png:
 89504e470d0a1a0a0000000d4948445200000064
 0000006401030000004a2c071700000003504c54
@@ -38,7 +38,7 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 05a360148c82514057000005780001dc45021b00
 00000049454e44ae426082
 */
-	conn.execute(
+/*	conn.execute(
 		"INSERT INTO attachments (id, name, mime_type, path, start, len)
 		VALUES (4, X'7265642e706e67', 'image/png', X'2f746d702f7265642e706e67', 0, 91)
 		;", params![])?;
@@ -49,14 +49,8 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 	conn.execute(
 		"INSERT INTO messages (id, sender, chat, time, contents, status)
 		VALUES (X'0000000000567833333055500000000000000008', 41411, X'c3a100000000000082f7de0f01000000', 1589921299, X'610400000000000000', 0)
-		;", params![])
+		;", params![])*/
 }
-
-/*
-		CREATE TABLE chats (
-			numbers BLOB
-		)
-*/
 
 pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) -> rusqlite::Result<usize> {
 	let chat_bytes: &[u8] = unsafe {

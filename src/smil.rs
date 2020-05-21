@@ -1,13 +1,15 @@
 const HEADER: &'static str  = r#"<smil>
 <head>
-<layout>\n"#;
+<layout>
+"#;
 //"r1", "meet"
 //"r2", "scroll"
 //format!(r#"<region id="{}" height="100%" width="100%" fit="{}"/>\n"#, id, fit)
 const MID: &'static str = r#"</layout>
 </head>
 <body>
-<par dur="5s">\n"#;
+<par dur="5s">
+"#;
 //"text", "foo.txt", "r1"
 //"img", "image.jpg", "r2"
 //"video", "vid.mp4", "r3"
@@ -47,17 +49,19 @@ pub fn generate_smil(attachments: &[(&str, &str, &str)]) -> String {
 	out.push_str(HEADER);
 	
 	let mut rest = String::new();
-	out.push_str(MID);
 	for (id, att) in attachments.iter().enumerate() {
 		let fit = mime_to_fit(att.1);
 		out.push_str(&format!(
-			r#"<region id="cid-{}" height="100%" width="100%" fit="{}"/>\n"#,
+			r#"<region id="cid-{}" height="100%" width="100%" fit="{}"/>
+"#,
 			id, fit));
 		let tag = mime_to_tag(att.1);
 		rest.push_str(&format!(
-			r#"<{} src="{}" region="cid-{}"/>\n"#,
+			r#"<{} src="{}" region="cid-{}"/>
+"#,
 			tag, att.0, id));
 	}
+	out.push_str(MID);
 	out.push_str(&rest);
 	out.push_str(FOOTER);
 	out

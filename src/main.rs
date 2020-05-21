@@ -129,8 +129,8 @@ impl VgmmsState {
 				}
 				contents.insert(0, MessageItem::Text(text));
 				
-				if let Some(sender) = Number::from_str(&*sender, ()) {
-					let mut chat: Vec<_> = recipients.iter().filter_map(|r| Number::from_str(&*r, ())).collect();
+				if let Some(sender) = Number::normalize(&*sender, self.my_country) {
+					let mut chat: Vec<_> = recipients.iter().filter_map(|r| Number::normalize(&*r, self.my_country)).collect();
 					chat.push(sender);
 					chat.sort();
 					let message = MessageInfo {
@@ -159,7 +159,7 @@ impl VgmmsState {
 						return
 					},
 				};
-				if let Some(sender) = Number::from_str(&*sender, ()) {
+				if let Some(sender) = Number::normalize(&*sender, self.my_country) {
 					let mut chat = vec![sender, self.my_number];
 					chat.sort();
 					let id = self.next_message_id();
@@ -189,16 +189,6 @@ use std::collections::{BTreeMap, HashMap};
 
 impl Default for VgmmsState {
 	fn default() -> Self {
-		let my_number = Number::new(4561237890);
-
-		let mut map = HashMap::new();
-		let nums = vec![Number::new(41411), my_number];
-		map.insert(nums.clone(), Chat {numbers: nums.clone()});
-		let nums = vec![Number::new(1238675309), my_number];
-		map.insert(nums.clone(), Chat {numbers: nums.clone()});
-
-		let mut messages = BTreeMap::new();
-
 		let mut conn = db::connect().unwrap();
 		let _ = db::create_tables(&mut conn);
 
@@ -214,6 +204,7 @@ impl Default for VgmmsState {
 			_ => 1,
 		};
 
+		let mut messages = BTreeMap::new();
 		{
 			let mut q = db::Query::new(&mut conn).unwrap();
 
@@ -232,14 +223,33 @@ impl Default for VgmmsState {
 
 		let attachments = db::get_all_attachments(&mut conn).unwrap();
 
+		let modem_path = match &*dbus::get_modem_paths().unwrap() {
+			[m] => m.to_owned(),
+			ms => panic!("expected 1 modem, got {}", ms.len()),
+		};
+		let my_number = dbus::get_my_number(&modem_path).unwrap()
+			.expect("could not determine subscriber phone number");
+		let my_country = Number::get_country(&my_number)
+			.expect("could not determine country of subscriber phone number");
+		let my_number = Number::normalize(&my_number, my_country)
+			.expect("could not parse subscriber phone number");
+
+		let mut chats = HashMap::new();
+		let nums = vec![Number::new(41411), my_number];
+		chats.insert(nums.clone(), Chat {numbers: nums.clone()});
+		let nums = vec![Number::new(1238675309), my_number];
+		chats.insert(nums.clone(), Chat {numbers: nums.clone()});
+
 		VgmmsState {
-			chats: map,
+			chats,
 			messages,
 			contacts: Default::default(),
 			attachments,
 			next_message_id,
 			next_attachment_id,
 			my_number,
+			my_country,
+			modem_path,
 			db_conn: conn,
 		}
 	}

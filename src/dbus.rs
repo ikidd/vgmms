@@ -211,6 +211,7 @@ pub fn get_modem_paths(/*sys_conn: &mut Connection*/) -> Result<Vec<dbus::string
 }
 
 pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
+	modem_path: &dbus::strings::Path,
 	msg: &MessageInfo,
 	atts: &HashMap<crate::types::AttachmentId, crate::types::Attachment>) -> Result<Option<dbus::strings::Path<'static>>, dbus::Error> {
 
@@ -226,7 +227,7 @@ pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
 	if let ([recip], [MessageItem::Text(t)]) = (&*recip_strings, &*msg.contents) { /* sms */
 		let mut conn = SYS_CONN.lock().unwrap();
 		let conn = conn.get_mut();
-		let sms_proxy = conn.with_proxy("org.ofono", "/quectelqmi_0", Duration::from_millis(500));
+		let sms_proxy = conn.with_proxy("org.ofono", modem_path, Duration::from_millis(500));
 		let () = sms_proxy.method_call("org.ofono.MessageManager", "SendMessage", (recip, t))?;
 		Ok(None)
 	} else { /* mms */

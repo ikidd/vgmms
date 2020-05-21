@@ -150,7 +150,7 @@ impl Component for ChatModel {
 						status: MessageStatus::Sending,
 					};
 					println!("inserting send {}: {:?}", hex::encode(&id[..]), message);
-					match crate::dbus::send_message(&message, &state.attachments) {
+					match crate::dbus::send_message(&state.modem_path, &message, &state.attachments) {
 						Ok(_) => (),
 						Err(e) => eprintln!("error sending message: {}", e),
 					};

@@ -53,10 +53,6 @@ impl Number {
 			None
 		}
 	}
-
-	pub fn from_str(s: &str, _settings: ()) -> Option<Number> {
-		Some(Number { num: s.parse().ok()? })
-	}
 }
 
 #[test]
@@ -159,5 +155,7 @@ pub struct VgmmsState {
 	pub next_message_id: MessageId,
 	pub next_attachment_id: AttachmentId,
 	pub my_number: Number,
+	pub my_country: phonenumber::country::Id,
+	pub modem_path: dbus::strings::Path<'static>,
 	pub db_conn: rusqlite::Connection,
 }

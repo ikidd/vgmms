@@ -1,5 +1,8 @@
 #![recursion_limit="512"]
 
+#[macro_use]
+extern crate lazy_static;
+
 use vgtk::ext::*;
 use vgtk::lib::gio::{self, ApplicationFlags};
 use vgtk::lib::gtk::{*, Box as GtkBox};
@@ -15,6 +18,11 @@ mod dbus;
 mod input_box;
 mod types;
 mod db;
+mod smil;
+
+/* dbus interfaces */
+mod mmsd_manager;
+mod mmsd_service;
 
 use chat::*;
 use types::*;
@@ -292,7 +300,7 @@ fn main() {
 	use gio::prelude::ApplicationExtManual;
 	use futures::stream::StreamExt;
 
-	let notif_stream = dbus::start();
+	let notif_stream = dbus::start_recv();
 	pretty_env_logger::init();
 	let (app, scope) = vgtk::start::<Model>();
 	std::thread::spawn(

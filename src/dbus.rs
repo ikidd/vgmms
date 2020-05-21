@@ -163,12 +163,139 @@ fn parse_mms_message(msg: &dbus::Message) -> Result<DbusNotification, ParseError
 	}
 }
 
-pub fn start() -> impl futures::Stream<Item=DbusNotification> {
+struct Conns {
+	sys_conn: Connection,
+	sess_conn: Connection,
+}
+
+use std::collections::HashMap;
+
+use crate::types::{MessageItem, MessageInfo};
+
+pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
+	msg: &MessageInfo,
+	atts: &HashMap<crate::types::AttachmentId, crate::types::Attachment>) -> Result<Option<dbus::strings::Path<'static>>, dbus::Error> {
+
+	let has_attachment = msg.contents.iter()
+		.any(|x| match x {
+			MessageItem::Attachment(_) => true,
+			_ => false
+		});
+	if msg.chat.len() > 2 || has_attachment { /* mms */
+		/* prepare recipients */
+		let recip_strings: Vec<_> = msg.chat.iter().filter_map(|n|
+			if n != &msg.sender {
+				Some(n.to_string())
+			} else {
+				None
+			}).collect();
+		let recip_strs: Vec<_> = recip_strings.iter().map(|s| &s[..]).collect();
+	
+		/* prepare attachments */
+		let mut attachments = Vec::<(&str, &str, &str)>::new(); /* name, mime type, disk path */
+
+		let mut text_files = vec![];
+		for item in &msg.contents {
+			match item {
+				MessageItem::Text(t) => {
+					use rand::Rng;
+					use std::io::Write;
+					let filename = format!("{}.txt", text_files.len());
+					let path = format!("/tmp/vgmms/{:x}/{}", rand::thread_rng().gen::<u32>(), filename);
+					let mut f = std::fs::File::create(&filename).unwrap();
+					f.write_all(t.as_bytes()).unwrap();
+					text_files.push((filename, path));
+				},
+				_ => (),
+			}
+		}
+
+		let mut n_text_files_used = 0;
+
+		for item in &msg.contents {
+			attachments.push(
+				match item {
+					MessageItem::Attachment(ref att_id) => {
+						if let Some(att) = atts.get(att_id) {
+							if att.data.1 != 0 {
+								eprintln!("cannot send partial attachment!");
+								continue
+							}
+							(att.name.to_str().unwrap(), &att.mime_type, att.data.0.to_str().unwrap())
+						} else {
+							eprintln!("could not find attachment {} when sending MMS", att_id);
+							continue
+						}
+					},
+					MessageItem::Text(_) => {
+						let (ref filename, ref path) = &text_files[n_text_files_used];
+						n_text_files_used += 1;
+						(filename, "text/plain", path)
+					},
+				}
+			);
+		}
+
+		let smil = crate::smil::generate_smil(&attachments);
+
+		let mut conn = SESS_CONN.lock().unwrap();
+		let conn = conn.get_mut();
+
+		let mms_proxy = conn.with_proxy("org.ofono.mms", "/org/ofono/mms", Duration::from_millis(500));
+		use crate::mmsd_manager::OrgOfonoMmsManager;
+		let services = mms_proxy.get_services()?;
+		let path: &dbus::strings::Path = &services[0].0;
+
+		let service_proxy = conn.with_proxy("org.ofono.mms", path, Duration::from_millis(500));
+
+		use crate::mmsd_service::OrgOfonoMmsService;
+		let path = service_proxy.send_message(recip_strs, &smil, attachments)?;
+		Ok(Some(path.to_owned()))
+		//service = "org.ofono.mms.Service")
+		
+	} else { /* sms */
+		let mut conn = SYS_CONN.lock().unwrap();
+		let conn = conn.get_mut();
+		let sms_proxy = conn.with_proxy("org.ofono", "/quectelqmi_0", Duration::from_millis(500));
+		let () = sms_proxy.method_call("org.ofono.MessageManager", "SendMessage", ("***REMOVED***", "rust test sms")).unwrap();
+		Ok(None)
+	}
+}
+
+/*pub fn start_send() -> impl futures::Sink<(MessageInfo,
+	HashMap<crate::types::AttachmentId, crate::types::Attachment>)> {
+	use futures::stream::StreamExt;
+	let (sink, stream) = futures::channel::mpsc::channel(0);
+
+	// open buses
+	let mut sys_conn = Connection::new_system().expect("DBus connection failed");
+	let mut sess_conn = Connection::new_session().expect("DBus connection failed");
+
+	std::thread::spawn(
+		move || futures::executor::block_on(
+			stream.for_each(move |(m, atts)| {
+				println!("sending message!");
+				send_message(&mut sys_conn, &mut sess_conn, &m, &atts);
+				futures::future::ready(())
+		})
+	));
+	sink
+}*/
+
+use std::sync::{Arc, Mutex};
+use std::cell::RefCell;
+
+lazy_static! {
+	pub static ref SYS_CONN: Arc<Mutex<RefCell<Connection>>> = Arc::new(Mutex::new(RefCell::new(Connection::new_system().expect("DBus connection failed"))));
+	pub static ref SESS_CONN: Arc<Mutex<RefCell<Connection>>> = Arc::new(Mutex::new(RefCell::new(Connection::new_session().expect("DBus connection failed"))));
+}
+
+pub fn start_recv() -> impl futures::Stream<Item=DbusNotification> {
 	let (mut sink, stream) = futures::channel::mpsc::channel(0);
 
 	// open buses
-	let mut sess_conn = Connection::new_session().expect("DBus connection failed");
 	let mut sys_conn = Connection::new_system().expect("DBus connection failed");
+	let mut sess_conn = Connection::new_session().expect("DBus connection failed");
 
 	let sms_recv_rule = MatchRule::new_signal("org.ofono.MessageManager", "IncomingMessage");
 	let mut mms_recv_rule = MatchRule::new_signal("org.ofono.mms.Service", "MessageAdded");
@@ -193,7 +320,7 @@ pub fn start() -> impl futures::Stream<Item=DbusNotification> {
 	}).expect("add_match failed");
 
 	// loop and print messages as they come
-	std::thread::spawn(move || loop { sess_conn.process(Duration::from_millis(1000)).unwrap(); });
 	std::thread::spawn(move || loop { sys_conn.process(Duration::from_millis(1000)).unwrap(); });
+	std::thread::spawn(move || loop { sess_conn.process(Duration::from_millis(1000)).unwrap(); });
 	stream
 }

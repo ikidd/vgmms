@@ -176,19 +176,22 @@ pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
 	msg: &MessageInfo,
 	atts: &HashMap<crate::types::AttachmentId, crate::types::Attachment>) -> Result<Option<dbus::strings::Path<'static>>, dbus::Error> {
 
-	let has_attachment = msg.contents.iter()
-		.any(|x| match x {
-			MessageItem::Attachment(_) => true,
-			_ => false
-		});
-	if msg.chat.len() > 2 || has_attachment { /* mms */
-		/* prepare recipients */
-		let recip_strings: Vec<_> = msg.chat.iter().filter_map(|n|
-			if n != &msg.sender {
-				Some(n.to_string())
-			} else {
-				None
-			}).collect();
+	/* prepare recipients */
+	let recip_strings: Vec<_> = msg.chat.iter().filter_map(|n|
+		if n != &msg.sender {
+			Some(n.to_string())
+		} else {
+			None
+		}).collect();
+
+	/* choose sms or mms */
+	if let ([recip], [MessageItem::Text(t)]) = (&*recip_strings, &*msg.contents) { /* sms */
+		let mut conn = SYS_CONN.lock().unwrap();
+		let conn = conn.get_mut();
+		let sms_proxy = conn.with_proxy("org.ofono", "/quectelqmi_0", Duration::from_millis(500));
+		let () = sms_proxy.method_call("org.ofono.MessageManager", "SendMessage", (recip, t))?;
+		Ok(None)
+	} else { /* mms */
 		let recip_strs: Vec<_> = recip_strings.iter().map(|s| &s[..]).collect();
 	
 		/* prepare attachments */
@@ -251,14 +254,6 @@ pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
 		use crate::mmsd_service::OrgOfonoMmsService;
 		let path = service_proxy.send_message(recip_strs, &smil, attachments)?;
 		Ok(Some(path.to_owned()))
-		//service = "org.ofono.mms.Service")
-		
-	} else { /* sms */
-		let mut conn = SYS_CONN.lock().unwrap();
-		let conn = conn.get_mut();
-		let sms_proxy = conn.with_proxy("org.ofono", "/quectelqmi_0", Duration::from_millis(500));
-		let () = sms_proxy.method_call("org.ofono.MessageManager", "SendMessage", ("***REMOVED***", "rust test sms")).unwrap();
-		Ok(None)
 	}
 }
 

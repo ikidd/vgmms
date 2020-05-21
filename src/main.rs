@@ -290,7 +290,7 @@ impl Component for Model {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
 				<Window default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
 					<GtkBox::new(Orientation::Vertical, 0)>
-						<Notebook GtkBox::expand=true>
+						<Notebook GtkBox::expand=true scrollable=true>
 							{
 								let my_number = self.state.read().unwrap().my_number;
 								self.state.read().unwrap().chats.iter().map(move |(_, c)| gtk! {

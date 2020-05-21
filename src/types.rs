@@ -26,9 +26,48 @@ impl Number {
 		self.num.to_string()
 	}
 
+	pub fn normalize(num_str: &str, default_country: phonenumber::country::Id) -> Option<Number> {
+		let n = phonenumber::parse(Some(default_country), num_str).ok()?;
+		let mut formatted = format!("{}",
+			n.format().mode(phonenumber::Mode::International));
+		formatted = formatted.replace(" ", "");
+		formatted = formatted.replace("-", "");
+		let int: u64 = formatted.parse().unwrap();
+		Some(Number { num: int })
+	}
+
+	pub fn get_country(num_str: &str) -> Option<phonenumber::country::Id> {
+		if let Some(n) = phonenumber::parse(None, num_str).ok() {
+			if n.is_valid() {
+				return n.country().id()
+			}
+		}
+
+		let mut s = "+".to_owned();
+		s.push_str(num_str);
+		let n = phonenumber::parse(None, s).ok()?;
+
+		if n.is_valid() {
+			n.country().id()
+		} else {
+			None
+		}
+	}
+
 	pub fn from_str(s: &str, _settings: ()) -> Option<Number> {
 		Some(Number { num: s.parse().ok()? })
 	}
+}
+
+#[test]
+fn test_normalize() {
+	let base = "13104356570";
+	let s1 = "3104356570";
+	let s2 = "+13104356570";
+	let num = Number { num: 13104356570 };
+	let country = Number::get_country(base).unwrap();
+	assert!(Number::normalize(s1, country) == Some(num));
+	assert!(Number::normalize(s2, country) == Some(num));
 }
 
 pub type AttachmentId = u64;

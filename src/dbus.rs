@@ -246,7 +246,7 @@ pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
 					let mut dir = format!("/tmp/vgmms/{:x}/", rand::thread_rng().gen::<u32>());
 					std::fs::create_dir_all(&dir).unwrap();
 					let path = { dir.push_str(&*filename); dir };
-					let mut f = std::fs::File::create(&filename).unwrap();
+					let mut f = std::fs::File::create(&path).unwrap();
 					f.write_all(t.as_bytes()).unwrap();
 					text_files.push((filename, path));
 				},

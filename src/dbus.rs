@@ -162,11 +162,6 @@ fn parse_mms_message(msg: &dbus::Message) -> Result<DbusNotification, ParseError
 	}
 }
 
-struct Conns {
-	sys_conn: Connection,
-	sess_conn: Connection,
-}
-
 use std::collections::HashMap;
 
 use crate::types::{MessageItem, MessageInfo};

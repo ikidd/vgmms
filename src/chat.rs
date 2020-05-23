@@ -78,9 +78,8 @@ impl ChatModel {
 								Ok(Ok(pixbuf)) => {
 									gtk! { <Image pixbuf=Some(pixbuf) on realize=|img| {
 										use gdk::prelude::GdkPixbufExt;
-										//use gdk::cairo_interaction::GdkPixbufExt;
-										let w = vgtk::current_window().unwrap();
-										let surf = img.get_pixbuf().unwrap().create_surface(w.get_scale_factor(), &w.get_window().unwrap());
+										let surf = img.get_pixbuf().unwrap().
+											create_surface(img.get_scale_factor(), &img.get_window().expect("no gdkwindow!"));
 										img.set_from_surface(surf.as_ref());
 										UiMessageChat::Nop
 									} halign=halign /> }

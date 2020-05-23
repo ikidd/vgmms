@@ -2,7 +2,7 @@ use vgtk::ext::*;
 use vgtk::lib::gtk::{self, *, Box as GtkBox};
 use vgtk::{gtk, Component, UpdateAction, VNode};
 use vgtk::lib::gdk_pixbuf::Pixbuf;
-use vgtk::lib::{gio, glib};
+use vgtk::lib::{gio, glib, gdk};
 
 use std::boxed::Box;
 use std::default::Default;
@@ -26,6 +26,7 @@ pub enum UiMessageChat {
 	Send(Vec<DraftItem>),
 	AskDelete(MessageId),
 	Delete(MessageId),
+	Nop,
 }
 
 fn with_attachment<T, F: FnOnce(&[u8]) -> T>(path: &Path, f: F) -> Result<T, std::io::Error> {
@@ -74,7 +75,16 @@ impl ChatModel {
 							let (ref path, start, len) = att.data;
 							match with_attachment(path, |data|
 								load_image(&data[start as usize..(start+len) as usize], 200, 200)) {
-								Ok(Ok(pixbuf)) => gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> },
+								Ok(Ok(pixbuf)) => {
+									gtk! { <Image pixbuf=Some(pixbuf) on realize=|img| {
+										use gdk::prelude::GdkPixbufExt;
+										//use gdk::cairo_interaction::GdkPixbufExt;
+										let w = vgtk::current_window().unwrap();
+										let surf = img.get_pixbuf().unwrap().create_surface(w.get_scale_factor(), &w.get_window().unwrap());
+										img.set_from_surface(surf.as_ref());
+										UiMessageChat::Nop
+									} halign=halign /> }
+								},
 								Ok(Err(e)) => gtk! { <Label label=format!("[image could not be loaded: {}]", e) xalign=align /> },
 								Err(e) => {
 									gtk! { <Label label=format!("[attachment at {} could not be opened: {}]", path.display(), e) xalign=align /> }
@@ -170,6 +180,9 @@ impl Component for ChatModel {
 			},
 			Delete(_msg_id) => {
 				UpdateAction::Render
+			},
+			Nop => {
+				UpdateAction::None
 			},
 		}
 	}

@@ -4,7 +4,13 @@ use byteorder::WriteBytesExt;
 use crate::types::*;
 
 pub fn connect() -> rusqlite::Result<Connection> {
-	let conn = Connection::open("/tmp/test.sqlite3")?;
+	let mut path = xdg_basedir::get_data_home()
+		.expect("could not find XDG data directory");
+	path.push("vgmms");
+	std::fs::create_dir_all(&path)
+		.expect(&format!("could not create {}", path.display()));
+	path.push("vgmms.db");
+	let conn = Connection::open(path)?;
 	Ok(conn)
 }
 

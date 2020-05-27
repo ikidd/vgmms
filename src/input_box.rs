@@ -15,7 +15,6 @@ struct FileChooser {
 #[derive(Clone, Debug)]
 enum UiMessageFileChooser {
 	Choose(Vec<PathBuf>),
-	Nop,
 }
 
 impl Component for FileChooser {
@@ -32,9 +31,8 @@ impl Component for FileChooser {
 	}
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
-		if let UiMessageFileChooser::Choose(fns) = msg {
-			self.on_choose.send(fns);
-		}
+		let UiMessageFileChooser::Choose(fns) = msg;
+		self.on_choose.send(fns);
 		UpdateAction::None
 	}
 
@@ -43,7 +41,7 @@ impl Component for FileChooser {
 			<FileChooserDialog::with_buttons(Some("Select attachment"), None::<&gtk::Window>,
 				FileChooserAction::Open,
 				&[("_Cancel", ResponseType::Cancel), ("_Open", ResponseType::Accept)])
-				on realize=|chooser| {chooser.set_select_multiple(true); UiMessageFileChooser::Nop}
+				select_multiple=true
 				on response=|chooser, _resp| UiMessageFileChooser::Choose(chooser.get_filenames())
 			/>
 		}

@@ -168,8 +168,7 @@ use crate::types::{MessageItem, MessageInfo};
 
 pub fn get_my_number(/*sys_conn: &mut Connection, */
 	modem_path: &dbus::strings::Path) -> Result<Option<String>, dbus::Error> {
-	let mut conn = SYS_CONN.lock().unwrap();
-	let conn = conn.get_mut();
+	let conn = SYS_CONN.lock().unwrap();
 	let sim_proxy = conn.with_proxy("org.ofono", modem_path, Duration::from_millis(500));
 	use crate::ofono_simmanager::OrgOfonoSimManager;
 	let dict = sim_proxy.get_properties()?;
@@ -196,8 +195,7 @@ pub fn get_my_number(/*sys_conn: &mut Connection, */
 }
 
 pub fn get_modem_paths(/*sys_conn: &mut Connection*/) -> Result<Vec<dbus::strings::Path<'static>>, dbus::Error> {
-	let mut conn = SYS_CONN.lock().unwrap();
-	let conn = conn.get_mut();
+	let conn = SYS_CONN.lock().unwrap();
 	let man_proxy = conn.with_proxy("org.ofono", "/", Duration::from_millis(500));
 	use crate::ofono_manager::OrgOfonoManager;
 	let modems = man_proxy.get_modems()?;
@@ -220,8 +218,7 @@ pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
 
 	/* choose sms or mms */
 	if let ([recip], [MessageItem::Text(t)]) = (&*recip_strings, &*msg.contents) { /* sms */
-		let mut conn = SYS_CONN.lock().unwrap();
-		let conn = conn.get_mut();
+		let conn = SYS_CONN.lock().unwrap();
 		let sms_proxy = conn.with_proxy("org.ofono", modem_path, Duration::from_millis(500));
 		let () = sms_proxy.method_call("org.ofono.MessageManager", "SendMessage", (recip, t))?;
 		Ok(None)
@@ -277,8 +274,7 @@ pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
 
 		let smil = crate::smil::generate_smil(&attachments);
 
-		let mut conn = SESS_CONN.lock().unwrap();
-		let conn = conn.get_mut();
+		let conn = SESS_CONN.lock().unwrap();
 
 		let mms_proxy = conn.with_proxy("org.ofono.mms", "/org/ofono/mms", Duration::from_millis(500));
 		use crate::mmsd_manager::OrgOfonoMmsManager;
@@ -314,11 +310,10 @@ pub fn send_message(/*sys_conn: &mut Connection, sess_conn: &mut Connection,*/
 }*/
 
 use std::sync::{Arc, Mutex};
-use std::cell::RefCell;
 
 lazy_static! {
-	pub static ref SYS_CONN: Arc<Mutex<RefCell<Connection>>> = Arc::new(Mutex::new(RefCell::new(Connection::new_system().expect("DBus connection failed"))));
-	pub static ref SESS_CONN: Arc<Mutex<RefCell<Connection>>> = Arc::new(Mutex::new(RefCell::new(Connection::new_session().expect("DBus connection failed"))));
+	pub static ref SYS_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(Connection::new_system().expect("DBus connection failed")));
+	pub static ref SESS_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(Connection::new_session().expect("DBus connection failed")));
 }
 
 pub fn start_recv() -> impl futures::Stream<Item=DbusNotification> {

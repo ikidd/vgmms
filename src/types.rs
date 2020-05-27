@@ -8,6 +8,8 @@ pub struct Attachment {
 	pub data: (std::path::PathBuf, u64, u64),
 }
 
+pub type Country = phonenumber::country::Id;
+
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(C)]
 pub struct Number {
@@ -35,7 +37,7 @@ impl Number {
 		Number { num: int }
 	}
 
-	pub fn normalize(num_str: &str, default_country: phonenumber::country::Id) -> Option<Number> {
+	pub fn normalize(num_str: &str, default_country: Country) -> Option<Number> {
 		let n = phonenumber::parse(Some(default_country), num_str).ok()?;
 
 		if n.is_valid() {
@@ -49,7 +51,7 @@ impl Number {
 		}
 	}
 
-	pub fn get_country(num_str: &str) -> Option<phonenumber::country::Id> {
+	pub fn get_country(num_str: &str) -> Option<Country> {
 		if let Some(n) = phonenumber::parse(None, num_str).ok() {
 			if n.is_valid() {
 				return n.country().id()
@@ -172,7 +174,7 @@ pub struct VgmmsState {
 	pub next_message_id: MessageId,
 	pub next_attachment_id: AttachmentId,
 	pub my_number: Number,
-	pub my_country: phonenumber::country::Id,
+	pub my_country: Country,
 	pub modem_path: dbus::strings::Path<'static>,
 	pub db_conn: rusqlite::Connection,
 }

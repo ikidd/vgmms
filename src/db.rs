@@ -82,8 +82,6 @@ pub fn insert_chat(conn: &mut Connection, chat: &Chat) -> rusqlite::Result<usize
 pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) -> rusqlite::Result<usize> {
 	let chat_bytes: &[u8] = chat_to_bytes(&*msg.chat);
 	
-	println!("insert chats: {:?}", chat_bytes);
-	
 	let mut contents_bytes = vec![];
 	for m in &msg.contents {
 		use std::io::Write;
@@ -100,8 +98,6 @@ pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) 
 		}
 	}
 
-	println!("insert contents: {:?}", contents_bytes);
-	
 	conn.execute(
 		"INSERT INTO messages (id, sender, chat, time, contents, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6);",
 		params![&id[..], msg.sender.num as i64, chat_bytes, msg.time as i64, contents_bytes, msg.status as u8],

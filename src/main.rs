@@ -13,14 +13,19 @@ use std::sync::{Arc, RwLock};
 
 use std::ffi::OsString;
 
+/* widgets */
 mod chat;
-mod dbus;
 mod input_box;
+
+/* logic */
 mod types;
-mod db;
 mod smil;
 
+/* persistence */
+mod db;
+
 /* dbus interfaces */
+mod dbus;
 mod mmsd_manager;
 mod mmsd_service;
 mod ofono_manager;

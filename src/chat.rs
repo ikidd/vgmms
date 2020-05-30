@@ -2,7 +2,7 @@ use vgtk::ext::*;
 use vgtk::lib::gtk::{self, *, Box as GtkBox};
 use vgtk::{gtk, Component, UpdateAction, VNode};
 use vgtk::lib::gdk_pixbuf::Pixbuf;
-use vgtk::lib::{gio, glib, gdk};
+use vgtk::lib::{gio, glib};
 
 use std::boxed::Box;
 use std::default::Default;
@@ -73,16 +73,35 @@ impl ChatModel {
 						};
 						if att.mime_type.starts_with("image/") {
 							let (ref path, start, len) = att.data;
-							match with_attachment(path, |data|
-								load_image(&data[start as usize..(start+len) as usize], 200, 200)) {
+							match with_attachment(path, |data| {
+									#[cfg(surface)]
+									let dim = -1;
+									#[cfg(not(surface))]
+									let dim = 100;
+									load_image(&data[start as usize..(start+len) as usize], dim, dim)
+								}) {
 								Ok(Ok(pixbuf)) => {
-									gtk! { <Image pixbuf=Some(pixbuf) on realize=|img| {
-										use gdk::prelude::GdkPixbufExt;
-										let surf = img.get_pixbuf().unwrap().
-											create_surface(img.get_scale_factor(), &img.get_window().expect("no gdkwindow!"));
-										img.set_from_surface(surf.as_ref());
-										UiMessageChat::Nop
-									} halign=halign /> }
+									#[cfg(surface)]
+									{
+										use vgtk::lib::gdk;
+										let surf = {
+											let max_width = 100f64;
+											let width = pixbuf.get_width() as f64;
+											let width_scale = width / max_width;
+											let max_height = 100f64;
+											let height = pixbuf.get_height() as f64;
+											let height_scale = height / max_height;
+											let scale = width_scale.max(height_scale);
+											use gdk::prelude::{GdkPixbufExt, WindowExtManual};
+											let window = gdk::Window::get_default_root_window();
+											let surf = pixbuf.create_surface(1, &window).unwrap();
+											surf.set_device_scale(scale, scale);
+											surf
+										};
+										gtk! { <Image property_surface=surf halign=halign /> }
+									}
+									#[cfg(not(surface))]
+									gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> }
 								},
 								Ok(Err(e)) => gtk! { <Label label=format!("[image could not be loaded: {}]", e) xalign=align /> },
 								Err(e) => {

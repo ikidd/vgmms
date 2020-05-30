@@ -17,7 +17,7 @@ pub fn connect() -> rusqlite::Result<Connection> {
 pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 	conn.execute(
 		"CREATE TABLE chats (
-			numbers BLOB
+			numbers BLOB PRIMARY KEY
 		)", params![])?;
 	conn.execute(
 		"CREATE TABLE messages (
@@ -58,12 +58,29 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 		;", params![])*/
 }
 
-pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) -> rusqlite::Result<usize> {
-	let chat_bytes: &[u8] = unsafe {
+fn chat_to_bytes(chat: &[Number]) -> &[u8] {
+	unsafe {
 		std::slice::from_raw_parts(
-			msg.chat.as_ptr() as *const _,
-			msg.chat.len() * std::mem::size_of::<Number>())
-	};
+			chat.as_ptr() as *const _,
+			chat.len() * std::mem::size_of::<Number>())
+	}
+}
+
+unsafe fn bytes_to_chat(data: &[u8]) -> &[Number] {
+	std::slice::from_raw_parts(
+		data.as_ptr() as *const _,
+		data.len() / std::mem::size_of::<Number>())
+}
+
+pub fn insert_chat(conn: &mut Connection, chat: &Chat) -> rusqlite::Result<usize> {
+	conn.execute(
+		"INSERT INTO chats (numbers) VALUES (?1);",
+		params![chat_to_bytes(&*chat.numbers)],
+	)
+}
+
+pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) -> rusqlite::Result<usize> {
+	let chat_bytes: &[u8] = chat_to_bytes(&*msg.chat);
 	
 	println!("insert chats: {:?}", chat_bytes);
 	
@@ -131,6 +148,25 @@ pub fn get_next_attachment_id(conn: &mut Connection) -> rusqlite::Result<Attachm
 		}
 	})?;
 	iter.next().unwrap()
+}
+
+pub fn get_all_chats(conn: &mut Connection) -> rusqlite::Result<Vec<Chat>> {
+	use crate::db::get::*;
+
+	let mut q = conn.prepare("SELECT numbers FROM chats")?;
+
+	let chat_iter = q.query_map(params![], |row| {
+		let chat = Chat {
+			numbers: get_numbers(row, 0)?,
+		};
+		Ok(chat)
+	})?;
+
+	Ok(chat_iter
+		.inspect(|x| if let Err(e) = x {
+			eprintln!("error loading chat: {}", e)
+		})
+		.filter_map(Result::ok).collect())
 }
 
 pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl Iterator<Item=rusqlite::Result<(MessageId, MessageInfo)>> + 'a, String>> {
@@ -210,11 +246,7 @@ mod get {
 
 	pub fn get_numbers(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<Vec<Number>> {
 		if let rusqlite::types::ValueRef::Blob(data) = row.get_raw(idx) {
-			let chat_nums: &[Number] = unsafe {
-				std::slice::from_raw_parts(
-					data.as_ptr() as *const _,
-					data.len() / std::mem::size_of::<Number>())
-			};
+			let chat_nums = unsafe { crate::db::bytes_to_chat(data) };
 			Ok(chat_nums.to_vec())
 		} else {
 			/* value was not a blob! */

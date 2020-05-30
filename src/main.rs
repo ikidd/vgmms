@@ -235,10 +235,10 @@ impl Default for VgmmsState {
 			.expect("could not parse subscriber phone number");
 
 		let mut chats = HashMap::new();
-		let nums = vec![Number::new(41411), my_number];
-		chats.insert(nums.clone(), Chat {numbers: nums.clone()});
-		let nums = vec![Number::new(1238675309), my_number];
-		chats.insert(nums.clone(), Chat {numbers: nums.clone()});
+		let chats_vec = db::get_all_chats(&mut conn).unwrap();
+		for c in chats_vec.into_iter() {
+			chats.insert(c.numbers.clone(), c);
+		}
 
 		VgmmsState {
 			chats,

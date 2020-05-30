@@ -10,12 +10,14 @@ use vgtk::{gtk, Component, UpdateAction, VNode};
 
 use std::default::Default;
 use std::sync::{Arc, RwLock};
+use std::boxed::Box;
 
 use std::ffi::OsString;
 
 /* widgets */
 mod chat;
 mod input_box;
+mod new_chat;
 
 /* logic */
 mod types;
@@ -46,6 +48,9 @@ enum UiMessage {
 	AskDelete(MessageId),
 	Delete(MessageId),
 	Exit,
+	DefineChat,
+	NewChat(Vec<Number>),
+	Nop,
 }
 
 fn read_file_chunk(path: &std::path::Path, start: u64, len: u64) -> Result<Vec<u8>, std::io::Error> {
@@ -287,26 +292,94 @@ impl Component for Model {
 				vgtk::quit();
 				UpdateAction::None
 			},
+			DefineChat => {
+				use std::sync::{Mutex};
+				let numbers_shared: Arc<Mutex<Vec<Number>>> = Default::default();
+
+				let fut = vgtk::run_dialog_props::<new_chat::NewChat>(vgtk::current_window().as_ref(),
+					new_chat::NewChat {
+						my_number: self.state.read().unwrap().my_number,
+						my_country: Some(self.state.read().unwrap().my_country),
+						numbers: vec![],
+						partial_num: String::new(),
+						numbers_shared: numbers_shared.clone(),
+					});
+
+				let fut = async move {
+					if let Ok(ResponseType::Accept) = fut.await {
+						NewChat(numbers_shared.lock().unwrap().clone())
+					} else {
+						Nop
+					}
+				};
+
+				UpdateAction::Defer(Box::pin(fut))
+			},
+			/*CloseChat(nums) => {
+				//close tab and save to db
+			},*/
+			NewChat(mut nums) => {
+				println!("newchat {:?}", nums);
+				let mut state = self.state.write().unwrap();
+				let my_number = state.my_number;
+				match state.chats.iter().enumerate().find(|&(_i, c)| c.1.numbers == nums) {
+					Some((_idx, c)) => {
+						println!("found chat {:?}", c);
+						/*TODO: switch to it*/
+					},
+					None => {
+						//if it doesn't, create it and save to db
+						nums.push(my_number);
+						nums.sort();
+						let chat = Chat{ numbers: nums };
+						println!("saving chat {:?}", chat);
+						if let Err(e) = db::insert_chat(&mut state.db_conn, &chat) {
+							eprintln!("error saving chat to database: {}", e);
+						}
+						state.chats.insert(chat.numbers.clone(), chat);
+					},
+				}
+				UpdateAction::Render
+			},
+			Nop => {
+				UpdateAction::None
+			},
 		}
 	}
 
 	fn view(&self) -> VNode<Model> {
+		let state = self.state.read().unwrap();
+		let my_number = state.my_number;
+		let chats_empty = state.chats.len() == 0;
 		gtk! {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
 				<Window default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
-					<GtkBox::new(Orientation::Vertical, 0)>
-						<Notebook GtkBox::expand=true scrollable=true>
-							{
-								let my_number = self.state.read().unwrap().my_number;
-								self.state.read().unwrap().chats.iter().map(move |(_, c)| gtk! {
-									<@ChatModel
-										Notebook::tab_label_text=c.get_name(&my_number)
-										chat=c
-										state=self.state.clone()
-									/>})
-							}
-						</Notebook>
-					</GtkBox>
+					<GtkBox::new(Orientation::Vertical, 0)>{
+						if chats_empty { gtk! {
+							<Button::new_from_icon_name(Some("list-add"), IconSize::Button)
+								GtkBox::expand=true valign=Align::Center
+								label="Start new chat"
+								on clicked=|_| UiMessage::DefineChat
+							/>
+						} } else { gtk!{
+							<Notebook GtkBox::expand=true scrollable=true>
+								<Button::new_from_icon_name(Some("list-add"), IconSize::Menu)
+									Notebook::action_widget_end=true
+									relief=ReliefStyle::None
+									on clicked=|_| UiMessage::DefineChat
+								/>
+								{
+									self.state.read().unwrap().chats.iter().map(move |(_, c)| gtk! {
+										<EventBox Notebook::tab_label=c.get_name(&my_number)>
+											<@ChatModel
+												chat=c
+												state=self.state.clone()
+											/>
+										</EventBox>})
+								}
+							</Notebook>
+						}}
+					}</GtkBox>
 				</Window>
 			</Application>
 		}

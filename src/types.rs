@@ -150,7 +150,7 @@ pub struct MessageInfo {
 	pub status: MessageStatus,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Chat {
 	pub numbers: Vec<Number>,
 }
@@ -168,7 +168,7 @@ use std::collections::{BTreeMap, HashMap};
 
 pub struct VgmmsState {
 	pub open_chats: Vec<Chat>,
-	pub chats: HashMap<Vec<Number>, Chat>,
+	pub chats: BTreeMap<Chat, Option<(u64, MessageId)>>,
 	pub messages: BTreeMap<MessageId, MessageInfo>,
 	pub contacts: HashMap<Number, Contact>,
 	pub attachments: HashMap<AttachmentId, Attachment>,

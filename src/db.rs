@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use byteorder::WriteBytesExt;
 
 use crate::types::*;
@@ -18,7 +18,9 @@ pub fn connect() -> rusqlite::Result<Connection> {
 pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 	conn.execute(
 		"CREATE TABLE chats (
-			numbers BLOB PRIMARY KEY
+			numbers BLOB PRIMARY KEY,
+			tab_id INTEGER UNIQUE,
+			last_msg_id INTEGER
 		)", params![])?;
 	conn.execute(
 		"CREATE TABLE messages (
@@ -73,16 +75,53 @@ unsafe fn bytes_to_chat(data: &[u8]) -> &[Number] {
 		data.len() / std::mem::size_of::<Number>())
 }
 
-pub fn insert_chat(conn: &mut Connection, chat: &Chat) -> rusqlite::Result<usize> {
+pub fn open_chat(conn: &mut Connection, chat: &Chat, tab_id: i32) -> rusqlite::Result<()> {
+	assert!(tab_id >= 0);
+
+	let chat_bytes = chat_to_bytes(&*chat.numbers);
+	let tx = conn.transaction()?;
+	/* increase tab numbers after this one */
+	tx.execute("UPDATE chats SET tab_id = tab_id + 1 WHERE tab_id >= ?1;",
+		params![tab_id],
+	)?;
+
+	/* get old last_msg_id */
+	let mut q = tx.prepare("SELECT last_msg_id FROM chats \
+		WHERE numbers = ?1")?;
+
+	let last_msg_id = q.query_row(params![chat_bytes], |row| {
+		Ok(get_id(row, 0).unwrap_or([0u8; 20]))
+	})
+		.optional()?
+		.unwrap_or([0u8; 20]);
+
+	drop(q);
+
+	/* update this chat */
+	tx.execute(
+		"INSERT INTO chats (numbers, tab_id, last_msg_id) VALUES (?1, ?2, ?3);",
+		params![chat_bytes, tab_id, &last_msg_id[..]],
+	)?;
+	tx.commit()
+}
+
+pub fn set_chat_tab(conn: &mut Connection, chat: &Chat, tab_id: i32) -> rusqlite::Result<usize> {
 	conn.execute(
-		"INSERT INTO chats (numbers) VALUES (?1);",
+		"UPDATE chats SET tab_id = ?1 WHERE numbers = ?2;",
+		params![tab_id, chat_to_bytes(&*chat.numbers)],
+	)
+}
+
+pub fn close_chat(conn: &mut Connection, chat: &Chat) -> rusqlite::Result<usize> {
+	conn.execute(
+		"UPDATE chats SET tab_id = NULL WHERE numbers = ?1;",
 		params![chat_to_bytes(&*chat.numbers)],
 	)
 }
 
-pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) -> rusqlite::Result<usize> {
+pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) -> rusqlite::Result<()> {
 	let chat_bytes: &[u8] = chat_to_bytes(&*msg.chat);
-	
+
 	let mut contents_bytes = vec![];
 	for m in &msg.contents {
 		use std::io::Write;
@@ -99,10 +138,16 @@ pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) 
 		}
 	}
 
-	conn.execute(
+	let tx = conn.transaction()?;
+	tx.execute(
 		"INSERT INTO messages (id, sender, chat, time, contents, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6);",
 		params![&id[..], msg.sender.num as i64, chat_bytes, msg.time as i64, contents_bytes, msg.status as u8],
-	)
+	)?;
+	tx.execute(
+		"UPDATE chats SET last_msg_id = ?1 where numbers = ?2;",
+		params![chat_bytes, &id[..]],
+	)?;
+	tx.commit()
 }
 
 pub fn insert_attachment(conn: &mut Connection, id: &AttachmentId, att: &Attachment) -> rusqlite::Result<usize> {
@@ -146,16 +191,24 @@ pub fn get_next_attachment_id(conn: &mut Connection) -> rusqlite::Result<Attachm
 	iter.next().unwrap()
 }
 
-pub fn get_all_chats(conn: &mut Connection) -> rusqlite::Result<Vec<Chat>> {
-	use crate::db::get::*;
-
-	let mut q = conn.prepare("SELECT numbers FROM chats")?;
+/*
+	return chats along with their open tab index (-1 if closed) and last message (if any) timestamp + id
+*/
+pub fn get_all_chats(conn: &mut Connection) -> rusqlite::Result<Vec<(Chat, i32, Option<(u64, MessageId)>)>> {
+	let mut q = conn.prepare("SELECT numbers, tab_id, last_msg_id, time FROM chats \
+		LEFT JOIN messages ON chats.last_msg_id = messages.id \
+		ORDER BY tab_id")?;
 
 	let chat_iter = q.query_map(params![], |row| {
 		let chat = Chat {
 			numbers: get_numbers(row, 0)?,
 		};
-		Ok(chat)
+		let tab_id: i32 = row.get(1).unwrap_or(-1);
+		let last_msg_info = match (get_id(row, 2), get_u64(row, 3)) {
+			(Ok(msg_id), Ok(timestamp)) => Some((timestamp, msg_id)),
+			_ => None,
+		};
+		Ok((chat, tab_id, last_msg_info))
 	})?;
 
 	Ok(chat_iter

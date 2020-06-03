@@ -198,7 +198,7 @@ impl VgmmsState {
 
 //fn ensure_chat_for(&mut self, recipients: ) -> 
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 impl Default for VgmmsState {
 	fn default() -> Self {
@@ -247,12 +247,20 @@ impl Default for VgmmsState {
 		let my_number = Number::normalize(&my_number, my_country)
 			.expect("could not parse subscriber phone number");
 
-		let mut chats = HashMap::new();
+		let mut chats = BTreeMap::new();
 		let mut open_chats = vec![];
-		let chats_vec = db::get_all_chats(&mut conn).unwrap();
-		for c in chats_vec.into_iter() {
-			open_chats.push(c.clone());
-			chats.insert(c.numbers.clone(), c);
+		for (c, tab_id, last_msg_info) in db::get_all_chats(&mut conn).unwrap().into_iter() {
+			/* insert into open_chats if open */
+			if tab_id >= 0 {
+				let tab_id = tab_id as usize;
+				/* ensure sufficient room in open_chats */
+				while open_chats.len() <= tab_id {
+					open_chats.push(Default::default());
+				}
+				open_chats[tab_id] = c.clone();
+			}
+			/* insert into chats map */
+			chats.insert(c, last_msg_info);
 		}
 
 		VgmmsState {
@@ -329,6 +337,9 @@ impl Component for Model {
 				if self.current_page >= 0 {
 					let mut state = self.state.write().unwrap();
 					let chat = state.open_chats.remove(self.current_page as usize);
+					if let Err(e) = db::close_chat(&mut state.db_conn, &chat) {
+						eprintln!("error saving chat state to database: {}", e);
+					}
 					if self.current_page >= state.open_chats.len() as i32 {
 						self.current_page -= 1;
 					}
@@ -342,7 +353,7 @@ impl Component for Model {
 				println!("newchat {:?}", nums);
 				let mut state = self.state.write().unwrap();
 				let my_number = state.my_number;
-				match state.chats.iter().enumerate().find(|&(_i, c)| c.1.numbers == nums) {
+				match state.chats.iter().enumerate().find(|&(_i, c)| c.0.numbers == nums) {
 					Some((_idx, c)) => {
 						println!("found chat {:?}", c);
 						/*TODO: switch to it*/
@@ -352,15 +363,16 @@ impl Component for Model {
 						nums.push(my_number);
 						nums.sort();
 						let chat = Chat{ numbers: nums };
+
 						println!("saving chat {:?}", chat);
-						if let Err(e) = db::insert_chat(&mut state.db_conn, &chat) {
-							eprintln!("error saving chat to database: {}", e);
+						if let Err(e) = db::open_chat(&mut state.db_conn, &chat, self.current_page) {
+							eprintln!("error saving chat state to database: {}", e);
 						}
 						if self.current_page < 0 {
 							self.current_page = 0
 						}
 						state.open_chats.insert(self.current_page as usize, chat.clone());
-						state.chats.insert(chat.numbers.clone(), chat);
+						state.chats.insert(chat, None);
 					},
 				}
 				UpdateAction::Render

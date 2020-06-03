@@ -2,6 +2,7 @@ use rusqlite::{params, Connection};
 use byteorder::WriteBytesExt;
 
 use crate::types::*;
+use self::get::*;
 
 pub fn connect() -> rusqlite::Result<Connection> {
 	let mut path = xdg_basedir::get_data_home()
@@ -123,21 +124,20 @@ impl<'a> Query<'a> {
 
 pub fn get_next_message_id(conn: &mut Connection) -> rusqlite::Result<MessageId> {
 	let mut stmt = conn.prepare("SELECT max(id) FROM messages")?;
-	let mut iter = stmt.query_map(params![], |row| {
-		if let Ok(mut id) = crate::db::get::get_id(row, 0) {
+	stmt.query_row(params![], |row| {
+		if let Ok(mut id) = get_id(row, 0) {
 			id.increment();
 			Ok(id)
 		} else {
 			Err(rusqlite::Error::InvalidColumnType(0, "message id".into(), rusqlite::types::Type::Blob))
 		}
-	})?;
-	iter.next().unwrap()
+	})
 }
 
 pub fn get_next_attachment_id(conn: &mut Connection) -> rusqlite::Result<AttachmentId> {
 	let mut stmt = conn.prepare("SELECT max(id) FROM attachments")?;
 	let mut iter = stmt.query_map(params![], |row| {
-		if let Ok(id) = crate::db::get::get_u64(row, 0) {
+		if let Ok(id) = get_u64(row, 0) {
 			Ok(id + 1)
 		} else {
 			Err(rusqlite::Error::InvalidColumnType(0, "attachment id".into(), rusqlite::types::Type::Blob))
@@ -166,8 +166,6 @@ pub fn get_all_chats(conn: &mut Connection) -> rusqlite::Result<Vec<Chat>> {
 }
 
 pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl Iterator<Item=rusqlite::Result<(MessageId, MessageInfo)>> + 'a, String>> {
-	use crate::db::get::*;
-
 	let message_iter = stmt.0.query_map(params![], |row| {
 		let id: MessageId = get_id(row, 0)?;
 		let message = MessageInfo {
@@ -186,8 +184,6 @@ pub fn get_all_messages<'a>(stmt: &'a mut Query) -> rusqlite::Result<Result<impl
 use std::collections::HashMap;
 
 pub fn get_all_attachments(conn: &mut Connection) -> rusqlite::Result<HashMap<AttachmentId, Attachment>> {
-	use crate::db::get::*;
-
 	let mut q = conn.prepare("SELECT id, name, mime_type, path, start, len FROM attachments")?;
 
 	let att_iter = q.query_map(params![], |row| {

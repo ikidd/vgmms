@@ -247,12 +247,15 @@ impl Default for VgmmsState {
 			.expect("could not parse subscriber phone number");
 
 		let mut chats = HashMap::new();
+		let mut open_chats = vec![];
 		let chats_vec = db::get_all_chats(&mut conn).unwrap();
 		for c in chats_vec.into_iter() {
+			open_chats.push(c.clone());
 			chats.insert(c.numbers.clone(), c);
 		}
 
 		VgmmsState {
+			open_chats,
 			chats,
 			messages,
 			contacts: Default::default(),
@@ -345,6 +348,7 @@ impl Component for Model {
 						if self.current_page < 0 {
 							self.current_page = 0
 						}
+						state.open_chats.insert(self.current_page as usize, chat.clone());
 						state.chats.insert(chat.numbers.clone(), chat);
 					},
 				}
@@ -380,7 +384,7 @@ impl Component for Model {
 									on clicked=|_| UiMessage::DefineChat
 								/>
 								{
-									self.state.read().unwrap().chats.iter().map(move |(_, c)| gtk! {
+									self.state.read().unwrap().open_chats.iter().map(move |c| gtk! {
 										<EventBox Notebook::tab_label=c.get_name(&my_number)>
 											<@ChatModel
 												chat=c

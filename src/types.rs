@@ -167,6 +167,7 @@ impl Chat {
 use std::collections::{BTreeMap, HashMap};
 
 pub struct VgmmsState {
+	pub open_chats: Vec<Chat>,
 	pub chats: HashMap<Vec<Number>, Chat>,
 	pub messages: BTreeMap<MessageId, MessageInfo>,
 	pub contacts: HashMap<Number, Contact>,

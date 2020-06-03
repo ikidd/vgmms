@@ -39,6 +39,7 @@ use types::*;
 #[derive(Clone, Default)]
 struct Model {
 	state: Arc<RwLock<VgmmsState>>,
+	current_page: i32,
 }
 
 #[derive(Clone, Debug)]
@@ -48,6 +49,7 @@ enum UiMessage {
 	AskDelete(MessageId),
 	Delete(MessageId),
 	Exit,
+	ChatChanged(i32),
 	DefineChat,
 	NewChat(Vec<Number>),
 	Nop,
@@ -292,6 +294,10 @@ impl Component for Model {
 				vgtk::quit();
 				UpdateAction::None
 			},
+			ChatChanged(n) => {
+				self.current_page = n;
+				UpdateAction::None
+			},
 			DefineChat => {
 				use std::sync::{Mutex};
 				let numbers_shared: Arc<Mutex<Vec<Number>>> = Default::default();
@@ -336,6 +342,9 @@ impl Component for Model {
 						if let Err(e) = db::insert_chat(&mut state.db_conn, &chat) {
 							eprintln!("error saving chat to database: {}", e);
 						}
+						if self.current_page < 0 {
+							self.current_page = 0
+						}
 						state.chats.insert(chat.numbers.clone(), chat);
 					},
 				}
@@ -362,7 +371,9 @@ impl Component for Model {
 								on clicked=|_| UiMessage::DefineChat
 							/>
 						} } else { gtk!{
-							<Notebook GtkBox::expand=true scrollable=true>
+							<Notebook GtkBox::expand=true scrollable=true
+								property_page=self.current_page
+								on switch_page=|_nb, _pg, n| UiMessage::ChatChanged(n as i32)>
 								<Button::new_from_icon_name(Some("list-add"), IconSize::Menu)
 									Notebook::action_widget_end=true
 									relief=ReliefStyle::None

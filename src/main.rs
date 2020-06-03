@@ -50,6 +50,7 @@ enum UiMessage {
 	Delete(MessageId),
 	Exit,
 	ChatChanged(i32),
+	CloseCurrentChat,
 	DefineChat,
 	NewChat(Vec<Number>),
 	Nop,
@@ -324,6 +325,16 @@ impl Component for Model {
 
 				UpdateAction::Defer(Box::pin(fut))
 			},
+			CloseCurrentChat => {
+				if self.current_page >= 0 {
+					let mut state = self.state.write().unwrap();
+					let chat = state.open_chats.remove(self.current_page as usize);
+					if self.current_page >= state.open_chats.len() as i32 {
+						self.current_page -= 1;
+					}
+				}
+				UpdateAction::Render
+			},
 			/*CloseChat(nums) => {
 				//close tab and save to db
 			},*/
@@ -378,11 +389,17 @@ impl Component for Model {
 							<Notebook GtkBox::expand=true scrollable=true
 								property_page=self.current_page
 								on switch_page=|_nb, _pg, n| UiMessage::ChatChanged(n as i32)>
-								<Button::new_from_icon_name(Some("list-add"), IconSize::Menu)
-									Notebook::action_widget_end=true
-									relief=ReliefStyle::None
-									on clicked=|_| UiMessage::DefineChat
-								/>
+								<GtkBox::new(Orientation::Horizontal, 0)
+									Notebook::action_widget_end=true>
+									<Button::new_from_icon_name(Some("window-close"), IconSize::Menu)
+										relief=ReliefStyle::None
+										on clicked=|_| UiMessage::CloseCurrentChat
+									/>
+									<Button::new_from_icon_name(Some("list-add"), IconSize::Menu)
+										relief=ReliefStyle::None
+										on clicked=|_| UiMessage::DefineChat
+									/>
+								</GtkBox>
 								{
 									self.state.read().unwrap().open_chats.iter().map(move |c| gtk! {
 										<EventBox Notebook::tab_label=c.get_name(&my_number)>

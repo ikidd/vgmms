@@ -315,7 +315,7 @@ mod get {
 		let vec = row.get::<_, Vec<u8>>(idx)?;
 		let mut kind = Unknown;
 		let mut text_start = 0;
-		
+
 		let mut i = 0;
 		while i < vec.len() {
 			let n = vec[i];

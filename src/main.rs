@@ -359,12 +359,12 @@ impl Component for Model {
 	fn view(&self) -> VNode<Model> {
 		let state = self.state.read().unwrap();
 		let my_number = state.my_number;
-		let chats_empty = state.chats.len() == 0;
+		let no_chats_open = state.open_chats.len() == 0;
 		gtk! {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
 				<Window default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
 					<GtkBox::new(Orientation::Vertical, 0)>{
-						if chats_empty { gtk! {
+						if no_chats_open { gtk! {
 							<Button::new_from_icon_name(Some("list-add"), IconSize::Button)
 								GtkBox::expand=true valign=Align::Center
 								label="Start new chat"

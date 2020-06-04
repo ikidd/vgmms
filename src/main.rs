@@ -80,9 +80,7 @@ fn parse_date(date: &str) -> chrono::format::ParseResult<u64> {
 impl VgmmsState {
 	pub fn next_message_id(&mut self) -> MessageId {
 		let id = self.next_message_id;
-
 		self.next_message_id.increment();
-
 		id
 	}
 
@@ -141,9 +139,10 @@ impl VgmmsState {
 					contents.push(MessageItem::Attachment(id));
 				}
 				contents.insert(0, MessageItem::Text(text));
-				
+
 				if let Some(sender) = Number::normalize(&*sender, self.my_country) {
-					let mut chat: Vec<_> = recipients.iter().filter_map(|r| Number::normalize(&*r, self.my_country)).collect();
+					let mut chat: Vec<_> = recipients.iter()
+						.filter_map(|r| Number::normalize(&*r, self.my_country)).collect();
 					chat.push(sender);
 					chat.sort();
 					let message = MessageInfo {

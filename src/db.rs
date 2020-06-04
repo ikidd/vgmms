@@ -20,7 +20,7 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 		"CREATE TABLE chats (
 			numbers BLOB PRIMARY KEY,
 			tab_id INTEGER UNIQUE,
-			last_msg_id INTEGER
+			last_msg_id BLOB
 		)", params![])?;
 	conn.execute(
 		"CREATE TABLE messages (

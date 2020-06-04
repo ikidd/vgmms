@@ -86,6 +86,22 @@ impl Component for Model {
 				self.current_page = n;
 				UpdateAction::None
 			},
+			CloseCurrentChat => {
+				if self.current_page >= 0 {
+					let mut state = self.state.write().unwrap();
+					let chat = state.open_chats.remove(self.current_page as usize);
+					if let Err(e) = db::close_chat(&mut state.db_conn, &chat) {
+						eprintln!("error saving chat state to database: {}", e);
+					}
+					if self.current_page >= state.open_chats.len() as i32 {
+						self.current_page -= 1;
+					}
+				}
+				UpdateAction::Render
+			},
+			/*CloseChat(nums) => {
+				//close tab and save to db
+			},*/
 			DefineChat => {
 				use std::sync::{Mutex};
 				let numbers_shared: Arc<Mutex<Vec<Number>>> = Default::default();
@@ -109,22 +125,6 @@ impl Component for Model {
 
 				UpdateAction::Defer(Box::pin(fut))
 			},
-			CloseCurrentChat => {
-				if self.current_page >= 0 {
-					let mut state = self.state.write().unwrap();
-					let chat = state.open_chats.remove(self.current_page as usize);
-					if let Err(e) = db::close_chat(&mut state.db_conn, &chat) {
-						eprintln!("error saving chat state to database: {}", e);
-					}
-					if self.current_page >= state.open_chats.len() as i32 {
-						self.current_page -= 1;
-					}
-				}
-				UpdateAction::Render
-			},
-			/*CloseChat(nums) => {
-				//close tab and save to db
-			},*/
 			NewChat(mut nums) => {
 				println!("newchat {:?}", nums);
 				let mut state = self.state.write().unwrap();

@@ -2,6 +2,8 @@
 
 `vgtk`-based SMS+MMS client
 
+![vgmms screenshot](https://user-images.githubusercontent.com/65555601/83953195-c4fb0000-a82d-11ea-845b-0fba2ded883a.png)
+
 ## motivation
 
 The other messaging stacks for linux either have no plans to support MMS or do not handle media attachments correctly, and rely on outdated and unmaintained infrastructure (namely the telepathy framework). `vgmms` exists to do only SMS+MMS and intends to have feature parity with messaging clients for Android and iOS.

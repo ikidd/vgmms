@@ -103,7 +103,7 @@ impl Component for Model {
 				//close tab and save to db
 			},*/
 			DefineChat => {
-				use std::sync::{Mutex};
+				use std::sync::Mutex;
 				let numbers_shared: Arc<Mutex<Vec<Number>>> = Default::default();
 
 				let fut = vgtk::run_dialog_props::<new_chat::NewChat>(vgtk::current_window().as_ref(),

@@ -51,7 +51,7 @@ enum UiMessage {
 	ChatChanged(i32),
 	CloseCurrentChat,
 	DefineChat,
-	NewChat(Vec<Number>),
+	OpenChat(Vec<Number>),
 	Nop,
 }
 
@@ -117,7 +117,7 @@ impl Component for Model {
 
 				let fut = async move {
 					if let Ok(ResponseType::Accept) = fut.await {
-						NewChat(numbers_shared.lock().unwrap().clone())
+						OpenChat(numbers_shared.lock().unwrap().clone())
 					} else {
 						Nop
 					}
@@ -125,8 +125,7 @@ impl Component for Model {
 
 				UpdateAction::Defer(Box::pin(fut))
 			},
-			NewChat(mut nums) => {
-				println!("newchat {:?}", nums);
+			OpenChat(mut nums) => {
 				let mut state = self.state.write().unwrap();
 				let my_number = state.my_number;
 				match state.chats.iter().enumerate().find(|&(_i, c)| c.0.numbers == nums) {

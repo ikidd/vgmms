@@ -31,8 +31,6 @@ pub enum UiMessageNewChat {
 	Add,
 	Remove(usize),
 	NumChanged(String),
-	Accept,
-	Cancel,
 	Nop,
 }
 
@@ -67,12 +65,6 @@ impl Component for NewChat {
 			Remove(i) => {
 				self.numbers.remove(i);
 				UpdateAction::Render
-			},
-			Accept => {
-				UpdateAction::None
-			}
-			Cancel => {
-				UpdateAction::None
 			},
 			Nop => {
 				UpdateAction::None
@@ -114,10 +106,6 @@ impl Component for NewChat {
 				DialogFlags::MODAL | DialogFlags::DESTROY_WITH_PARENT,
 				&[("_Cancel", ResponseType::Cancel), ("_Open", ResponseType::Accept)])
 				default_height=300
-				on response=|_d, resp| {if resp == ResponseType::Accept {
-						UiMessageNewChat::Accept
-					} else {
-						UiMessageNewChat::Cancel}}
 				>
 				<GtkBox::new(Orientation::Vertical, 0)
 					on parent_set=|w, _old| { set_expand_fill(w); UiMessageNewChat::Nop }>

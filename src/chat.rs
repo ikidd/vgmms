@@ -62,7 +62,7 @@ impl ChatModel {
 				match item {
 					MessageItem::Text(ref t) => {
 						let text = format!("[{}] {}: {}", msg.time, msg.sender.to_string(), t);
-						gtk! { <Label label=text line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=align /> }
+						gtk! { <Label label=text selectable=true line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=align /> }
 					},
 					MessageItem::Attachment(ref id) => {
 						let att = match state.attachments.get(id) {
@@ -116,7 +116,7 @@ impl ChatModel {
 				}
 			});
 			Some(gtk! {
-				<ListBoxRow>
+				<ListBoxRow selectable=false>
 					<GtkBox::new(Orientation::Vertical, 0)>
 						{widget_content}
 					</GtkBox>

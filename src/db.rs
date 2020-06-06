@@ -145,7 +145,7 @@ pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) 
 	)?;
 	tx.execute(
 		"UPDATE chats SET last_msg_id = ?1 where numbers = ?2;",
-		params![chat_bytes, &id[..]],
+		params![&id[..], chat_bytes],
 	)?;
 	tx.commit()
 }

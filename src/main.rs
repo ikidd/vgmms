@@ -144,20 +144,24 @@ impl Component for Model {
 						self.current_page = idx as i32;
 					},
 					None => {
-						//if it doesn't, create it and save to db
-						nums.push(my_number);
-						nums.sort();
-						let chat = Chat{ numbers: nums };
-
-						println!("saving chat {:?}", chat);
-						if let Err(e) = db::open_chat(&mut state.db_conn, &chat, self.current_page) {
-							eprintln!("error saving chat state to database: {}", e);
-						}
 						if self.current_page < 0 {
 							self.current_page = 0
 						}
-						state.open_chats.insert(self.current_page as usize, chat.clone());
-						state.chats.insert(chat, None);
+						let chat = Chat { numbers: nums };
+
+						if state.chats.get(&chat).is_some() {
+							/* if chat exists but isn't open, set its tab */
+							if let Err(e) = db::set_chat_tab(&mut state.db_conn, &chat, self.current_page) {
+								eprintln!("error saving chat state to database: {}", e);
+							}
+						} else {
+							/* if it doesn't, create it and save to db */
+							if let Err(e) = db::open_chat(&mut state.db_conn, &chat, self.current_page) {
+								eprintln!("error saving chat to database: {}", e);
+							}
+							state.chats.insert(chat.clone(), None);
+						}
+						state.open_chats.insert(self.current_page as usize, chat);
 					},
 				}
 				UpdateAction::Render

@@ -16,6 +16,7 @@ use std::boxed::Box;
 mod chat;
 mod input_box;
 mod new_chat;
+mod select_chat;
 
 /* logic */
 mod types;
@@ -50,6 +51,7 @@ enum UiMessage {
 	Exit,
 	ChatChanged(i32),
 	CloseCurrentChat,
+	SelectChat,
 	DefineChat,
 	OpenChat(Vec<Number>),
 	Nop,
@@ -102,6 +104,36 @@ impl Component for Model {
 			/*CloseChat(nums) => {
 				//close tab and save to db
 			},*/
+			SelectChat => {
+				use std::sync::Mutex;
+				let numbers_shared: Arc<Mutex<Vec<Number>>> = Default::default();
+
+				let fut = vgtk::run_dialog_props::<select_chat::SelectChatDialog>(vgtk::current_window().as_ref(),
+					select_chat::SelectChatDialog {
+						state: self.state.clone(),
+						numbers_shared: numbers_shared.clone(),
+						numbers: vec![],
+					});
+
+				let fut = async move {
+					match fut.await {
+						Ok(ResponseType::Other(0)) => {
+							DefineChat
+						},
+						Ok(ResponseType::Accept) => {
+							let nums = numbers_shared.lock().unwrap();
+							if nums.len() > 0 {
+								OpenChat(nums.clone())
+							} else {
+								Nop
+							}
+						},
+						_ => Nop,
+					}
+				};
+
+				UpdateAction::Defer(Box::pin(fut))
+			},
 			DefineChat => {
 				use std::sync::Mutex;
 				let numbers_shared: Arc<Mutex<Vec<Number>>> = Default::default();
@@ -175,16 +207,22 @@ impl Component for Model {
 	fn view(&self) -> VNode<Model> {
 		let state = self.state.read().unwrap();
 		let my_number = state.my_number;
+		let no_chats = state.chats.len() == 0;
 		let no_chats_open = state.open_chats.len() == 0;
 		gtk! {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
 				<Window default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
 					<GtkBox::new(Orientation::Vertical, 0)>{
-						if no_chats_open { gtk! {
+						if no_chats { gtk! {
 							<Button::new_from_icon_name(Some("list-add"), IconSize::Button)
 								GtkBox::expand=true valign=Align::Center
 								label="Start new chat"
 								on clicked=|_| UiMessage::DefineChat
+							/>
+						} } else if no_chats_open { gtk! {
+							<@select_chat::SelectChat
+								state=self.state.clone()
+								on select=|nums| UiMessage::OpenChat(nums)
 							/>
 						} } else { gtk!{
 							<Notebook GtkBox::expand=true scrollable=true
@@ -198,7 +236,7 @@ impl Component for Model {
 									/>
 									<Button::new_from_icon_name(Some("list-add"), IconSize::Menu)
 										relief=ReliefStyle::None
-										on clicked=|_| UiMessage::DefineChat
+										on clicked=|_| {if no_chats { UiMessage::DefineChat } else { UiMessage::SelectChat }}
 									/>
 								</GtkBox>
 								{

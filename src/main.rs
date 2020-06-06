@@ -128,10 +128,10 @@ impl Component for Model {
 			OpenChat(mut nums) => {
 				let mut state = self.state.write().unwrap();
 				let my_number = state.my_number;
-				match state.chats.iter().enumerate().find(|&(_i, c)| c.0.numbers == nums) {
-					Some((_idx, c)) => {
-						println!("found chat {:?}", c);
-						/*TODO: switch to it*/
+
+				match state.open_chats.iter().enumerate().find(|&(_i, c)| c.numbers == nums) {
+					Some((idx, _c)) => {
+						self.current_page = idx as i32;
 					},
 					None => {
 						//if it doesn't, create it and save to db

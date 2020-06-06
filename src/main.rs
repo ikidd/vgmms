@@ -129,6 +129,16 @@ impl Component for Model {
 				let mut state = self.state.write().unwrap();
 				let my_number = state.my_number;
 
+				if !nums.contains(&my_number) {
+					nums.push(my_number);
+				}
+				nums.sort();
+
+				/* bail if nums is trivial */
+				if nums.len() == 1 {
+					return UpdateAction::None;
+				}
+
 				match state.open_chats.iter().enumerate().find(|&(_i, c)| c.numbers == nums) {
 					Some((idx, _c)) => {
 						self.current_page = idx as i32;

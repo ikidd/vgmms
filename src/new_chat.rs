@@ -64,6 +64,7 @@ impl Component for NewChat {
 			},
 			Remove(i) => {
 				self.numbers.remove(i);
+				*self.numbers_shared.lock().unwrap() = self.numbers.clone();
 				UpdateAction::Render
 			},
 			Nop => {

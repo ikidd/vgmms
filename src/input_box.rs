@@ -1,4 +1,4 @@
-use vgtk::lib::gtk::{self, *, Box as GtkBox};
+use vgtk::lib::gtk::{*, Box as GtkBox};
 use vgtk::{gtk, Component, UpdateAction, VNode, Callback};
 
 use std::boxed::Box;
@@ -38,7 +38,7 @@ impl Component for FileChooser {
 
 	fn view(&self) -> VNode<Self> {
 		gtk! {
-			<FileChooserDialog::with_buttons(Some("Select attachment"), None::<&gtk::Window>,
+			<FileChooserDialog::with_buttons(Some("Select attachment"), None::<&Window>,
 				FileChooserAction::Open,
 				&[("_Cancel", ResponseType::Cancel), ("_Open", ResponseType::Accept)])
 				select_multiple=true

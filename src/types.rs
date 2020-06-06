@@ -160,7 +160,7 @@ impl Chat {
 		self.numbers.iter()
 			.filter(|x| x != &my_number)
 			.map(|x| x.to_string())
-			.collect::<Vec<_>>().join(" ")
+			.collect::<Vec<_>>().join(", ")
 	}
 }
 

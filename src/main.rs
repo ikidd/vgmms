@@ -4,7 +4,7 @@
 extern crate lazy_static;
 
 use vgtk::ext::*;
-use vgtk::lib::gio::{self, ApplicationFlags};
+use vgtk::lib::gio::{self, ActionExt, ApplicationFlags, SimpleAction};
 use vgtk::lib::gtk::{*, Box as GtkBox};
 use vgtk::{gtk, Component, UpdateAction, VNode};
 
@@ -216,6 +216,12 @@ impl Component for Model {
 		let no_chats_open = state.open_chats.len() == 0;
 		gtk! {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
+				<SimpleAction::new("exit", None) Application::accels=["<Ctrl>q"].as_ref() enabled=true
+					on activate=|_a, _| UiMessage::Exit />
+				<SimpleAction::new("new-tab", None) Application::accels=["<Ctrl>t"].as_ref() enabled=true
+					on activate=|_a, _| UiMessage::SelectChat />
+				<SimpleAction::new("close-tab", None) Application::accels=["<Ctrl>w"].as_ref() enabled=true
+					on activate=|_a, _| UiMessage::CloseCurrentChat />
 				<ApplicationWindow default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
 					<GtkBox::new(Orientation::Vertical, 0)>{
 						if no_chats { gtk! {

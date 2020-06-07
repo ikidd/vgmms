@@ -89,8 +89,11 @@ impl Component for Model {
 				UpdateAction::None
 			},
 			CloseCurrentChat => {
+				let mut state = self.state.write().unwrap();
+				if state.open_chats.len() == 0 {
+					self.current_page = -1;
+				}
 				if self.current_page >= 0 {
-					let mut state = self.state.write().unwrap();
 					let chat = state.open_chats.remove(self.current_page as usize);
 					if let Err(e) = db::close_chat(&mut state.db_conn, &chat) {
 						eprintln!("error saving chat state to database: {}", e);
@@ -98,8 +101,10 @@ impl Component for Model {
 					if self.current_page >= state.open_chats.len() as i32 {
 						self.current_page -= 1;
 					}
+					UpdateAction::Render
+				} else {
+					UpdateAction::None
 				}
-				UpdateAction::Render
 			},
 			/*CloseChat(nums) => {
 				//close tab and save to db

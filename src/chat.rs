@@ -207,9 +207,16 @@ impl Component for ChatModel {
 
 	fn view(&self) -> VNode<ChatModel> {
 		let state = self.state.read().unwrap();
+		fn keep_scrolled_to_bottom(sw: &ScrolledWindow) {
+			if let Some(adj) = sw.get_vadjustment() {
+				adj.connect_property_upper_notify(|adj| {
+					adj.set_value(adj.get_upper());
+				});
+			}
+		}
 		gtk! {
 			<GtkBox::new(Orientation::Vertical, 0)>
-				<ScrolledWindow GtkBox::expand=true>
+				<ScrolledWindow GtkBox::expand=true on map=|sw| { keep_scrolled_to_bottom(sw); UiMessageChat::Nop} >
 					<ListBox> //TODO: TreeView
 					{self.generate_log_widgets(&*state)}
 					</ListBox>

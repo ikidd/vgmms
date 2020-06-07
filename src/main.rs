@@ -216,7 +216,7 @@ impl Component for Model {
 		let no_chats_open = state.open_chats.len() == 0;
 		gtk! {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
-				<Window default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
+				<ApplicationWindow default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
 					<GtkBox::new(Orientation::Vertical, 0)>{
 						if no_chats { gtk! {
 							<Button::new_from_icon_name(Some("list-add"), IconSize::Button)
@@ -256,7 +256,7 @@ impl Component for Model {
 							</Notebook>
 						}}
 					}</GtkBox>
-				</Window>
+				</ApplicationWindow>
 			</Application>
 		}
 	}

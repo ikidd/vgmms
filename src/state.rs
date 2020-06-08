@@ -37,6 +37,13 @@ impl VgmmsState {
 		id
 	}
 
+	pub fn add_message(&mut self, id: MessageId, message: MessageInfo) {
+		if let Err(e) = db::insert_message(&mut self.db_conn, &id, &message) {
+			eprintln!("error saving message: {}", e);
+		}
+		self.messages.insert(id, message);
+	}
+
 	pub fn handle_notif(&mut self, notif: dbus::DbusNotification) {
 		use self::dbus::DbusNotification::*;
 		match notif {
@@ -100,10 +107,7 @@ impl VgmmsState {
 						status: MessageStatus::Received,
 					};
 					println!("inserting mms {}: {:?}", hex::encode(&id[..]), message);
-					if let Err(e) = db::insert_message(&mut self.db_conn, &id, &message) {
-						eprintln!("error saving message to database: {}", e);
-					}
-					self.messages.insert(id, message);
+					self.add_message(id, message);
 				} else {
 					eprintln!("cannot parse number {}", sender);
 				}
@@ -130,10 +134,7 @@ impl VgmmsState {
 						status: MessageStatus::Received,
 					};
 					println!("inserting sms {}: {:?}", hex::encode(&id[..]), message);
-					if let Err(e) = db::insert_message(&mut self.db_conn, &id, &message) {
-						eprintln!("error saving message to database: {}", e);
-					}
-					self.messages.insert(id, message);
+					self.add_message(id, message);
 				} else {
 					eprintln!("cannot parse number {}", sender);
 				}

@@ -220,10 +220,7 @@ impl Component for ChatModel {
 						Ok(_) => (),
 						Err(e) => eprintln!("error sending message: {}", e),
 					};
-					if let Err(e) = db::insert_message(&mut state.db_conn, &id, &message) {
-						eprintln!("error saving message to database: {}", e);
-					}
-					state.messages.insert(id, message);
+					state.add_message(id.clone(), message);
 					id
 				};
 				let fut = async move {

@@ -169,6 +169,12 @@ pub struct Chat {
 	pub numbers: Vec<Number>,
 }
 
+impl std::borrow::Borrow<Vec<Number>> for Chat {
+	fn borrow(&self) -> &Vec<Number> {
+		&self.numbers
+	}
+}
+
 impl Chat {
 	pub fn get_name(&self, my_number: &Number) -> String {
 		self.numbers.iter()

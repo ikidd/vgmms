@@ -6,7 +6,6 @@ use vgtk::lib::{gio, glib};
 
 use std::boxed::Box;
 use std::default::Default;
-use std::path::Path;
 
 use std::sync::{Arc, RwLock};
 use crate::types::*;
@@ -27,17 +26,6 @@ pub enum UiMessageChat {
 	AskDelete(MessageId),
 	Delete(MessageId),
 	Nop,
-}
-
-fn with_attachment<T, F: FnOnce(&[u8]) -> T>(path: &Path, f: F) -> Result<T, std::io::Error> {
-	use memmap::MmapOptions;
-	use std::fs::OpenOptions;
-	let file = OpenOptions::new()
-		.read(true)
-		.write(true).open(path)?;
-	let mmap = unsafe { MmapOptions::new().map_mut(&file)? };
-	let mmap = mmap.make_read_only()?;
-	Ok(f(&*mmap))
 }
 
 fn load_image(data: &[u8], width: i32, height: i32) -> Result<Pixbuf, glib::Error> {
@@ -72,13 +60,12 @@ impl ChatModel {
 							}
 						};
 						if att.mime_type.starts_with("image/") {
-							let (ref path, start, len) = att.data;
-							match with_attachment(path, |data| {
+							match att.with_data(|data| {
 									#[cfg(surface)]
 									let dim = -1;
 									#[cfg(not(surface))]
 									let dim = 100;
-									load_image(&data[start as usize..(start+len) as usize], dim, dim)
+									load_image(data, dim, dim)
 								}) {
 								Ok(Ok(pixbuf)) => {
 									#[cfg(surface)]
@@ -105,6 +92,7 @@ impl ChatModel {
 								},
 								Ok(Err(e)) => gtk! { <Label label=format!("[image could not be loaded: {}]", e) xalign=align /> },
 								Err(e) => {
+									let path = &att.data.0;
 									gtk! { <Label label=format!("[attachment at {} could not be opened: {}]", path.display(), e) xalign=align /> }
 								},
 							}

@@ -8,6 +8,20 @@ pub struct Attachment {
 	pub data: (std::path::PathBuf, u64, u64),
 }
 
+impl Attachment {
+	pub fn with_data<T, F: FnOnce(&[u8]) -> T>(&self, f: F) -> Result<T, std::io::Error> {
+		let (ref path, start, len) = self.data;
+		use memmap::MmapOptions;
+		use std::fs::OpenOptions;
+		let file = OpenOptions::new()
+			.read(true)
+			.write(true).open(path)?;
+		let mmap = unsafe { MmapOptions::new().map_mut(&file)? };
+		let mmap = mmap.make_read_only()?;
+		Ok(f(&mmap[start as usize..(start+len) as usize]))
+	}
+}
+
 pub type Country = phonenumber::country::Id;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]

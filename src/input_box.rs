@@ -5,6 +5,8 @@ use std::boxed::Box;
 use std::default::Default;
 
 use std::path::PathBuf;
+
+use crate::once;
 use crate::types::*;
 
 #[derive(Clone, Debug, Default)]
@@ -85,20 +87,6 @@ pub enum UiMessageInputBox {
 	Nop,
 }
 
-fn once<A, F: FnOnce(A)>(f: F) -> impl Fn(A) {
-    use std::cell::Cell;
-    use std::rc::Rc;
-
-    let f = Rc::new(Cell::new(Some(f)));
-    move |value| {
-        if let Some(f) = f.take() {
-            f(value);
-        } else {
-            panic!("vgtk::once() function called twice 😒");
-        }
-    }
-}
-
 impl Component for InputBoxModel {
 	type Message = UiMessageInputBox;
 	type Properties = Self;
@@ -154,7 +142,7 @@ impl Component for InputBoxModel {
 
 				let fut = vgtk::run_dialog_props::<FileChooser>(vgtk::current_window().as_ref(),
 					FileChooser {
-						on_choose: {let cb: Callback<Vec<PathBuf>> = Box::new(once(move |filenames| {
+						on_choose: {let cb: Callback<Vec<PathBuf>> = Box::new(once::once(move |filenames| {
 							let _ = notify.send(filenames);
 						})).into(); cb},
 						action: Some(FileChooserAction::Open),

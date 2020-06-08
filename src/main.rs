@@ -19,6 +19,7 @@ mod new_chat;
 mod select_chat;
 
 /* logic */
+mod once;
 mod types;
 mod smil;
 mod state;

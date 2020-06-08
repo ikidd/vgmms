@@ -36,6 +36,40 @@ fn load_image(data: &[u8], width: i32, height: i32) -> Result<Pixbuf, glib::Erro
 	pixbuf
 }
 
+fn set_long_press_rightclick_menu<P: gtk::prelude::IsA<Widget> + glib::value::SetValueOptional>(w: &P, menu: Menu) {
+	use vgtk::lib::gtk::prelude::WidgetExtManual;
+	use vgtk::lib::gdk;
+	w.add_events(gdk::EventMask::BUTTON_PRESS_MASK|gdk::EventMask::TOUCH_MASK);
+	menu.set_property_attach_widget(Some(w));
+
+	let cb_menu = menu.clone();
+	w.connect_button_press_event(move |_w, ev| {
+		if ev.get_button() == 3 {
+			cb_menu.popup_at_pointer(Some(&ev));
+			return glib::signal::Inhibit(true);
+		}
+		glib::signal::Inhibit(false)
+	});
+
+	let w = w.clone();
+	let gest = GestureLongPress::new(&w);
+	gest.set_touch_only(true);
+	gest.set_propagation_phase(PropagationPhase::Capture);
+	gest.connect_cancelled(move |_gest| {
+	});
+	gest.connect_pressed(move |_gest, _x, _y| {
+		if let Some(rect) = _gest.get_bounding_box() {
+		if let Some(seq) = _gest.get_last_updated_sequence() {
+		if let Some(ev) = _gest.get_last_event(Some(&seq)) {
+			menu.popup_at_rect(&w.get_window().unwrap(), &rect,
+				gdk::Gravity::NorthWest, gdk::Gravity::NorthWest,
+				Some(&ev));
+		}}}
+	});
+	//must leak gest to keep things working
+	std::mem::forget(gest);
+}
+
 impl ChatModel {
 	fn generate_log_widgets<'a>(&'a self, state: &'a VgmmsState) -> impl Iterator<Item=VNode<Self>> + 'a {
 		state.messages.iter().filter_map(move |(_id, msg)| {

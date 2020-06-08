@@ -8,13 +8,19 @@ use std::path::PathBuf;
 use crate::types::*;
 
 #[derive(Clone, Debug, Default)]
-struct FileChooser {
-	on_choose: Callback<Vec<PathBuf>>
+pub struct FileChooser {
+	pub on_choose: Callback<Vec<PathBuf>>,
+	pub action: Option<FileChooserAction>,
+	pub title: String,
+	pub select_multiple: bool,
+	pub accept_label: String,
+	pub default_name: Option<String>,
 }
 
 #[derive(Clone, Debug)]
-enum UiMessageFileChooser {
+pub enum UiMessageFileChooser {
 	Choose(Vec<PathBuf>),
+	Nop,
 }
 
 impl Component for FileChooser {
@@ -31,17 +37,28 @@ impl Component for FileChooser {
 	}
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
-		let UiMessageFileChooser::Choose(fns) = msg;
-		self.on_choose.send(fns);
+		if let UiMessageFileChooser::Choose(fns) = msg {
+			self.on_choose.send(fns);
+		};
 		UpdateAction::None
 	}
 
 	fn view(&self) -> VNode<Self> {
+		let (action, title, accept_label, select_multiple) = (self.action, self.title.clone(),
+			self.accept_label.clone(), self.select_multiple);
+		let name = self.default_name.clone();
 		gtk! {
-			<FileChooserDialog::with_buttons(Some("Select attachment"), None::<&Window>,
-				FileChooserAction::Open,
-				&[("_Cancel", ResponseType::Cancel), ("_Open", ResponseType::Accept)])
-				select_multiple=true
+			<FileChooserDialog::with_buttons(Some(&*title), None::<&Window>,
+				action.unwrap_or(FileChooserAction::Open),
+				&[("_Cancel", ResponseType::Cancel), (&*accept_label, ResponseType::Accept)])
+				select_multiple=select_multiple
+				widget_name=name.unwrap_or("".into())
+
+				on map=|chooser| {
+					if let Some(name) = chooser.get_widget_name() {
+						chooser.set_current_name(name.as_str())
+					}; UiMessageFileChooser::Nop
+				}
 				on response=|chooser, _resp| UiMessageFileChooser::Choose(chooser.get_filenames())
 			/>
 		}
@@ -140,6 +157,11 @@ impl Component for InputBoxModel {
 						on_choose: {let cb: Callback<Vec<PathBuf>> = Box::new(once(move |filenames| {
 							let _ = notify.send(filenames);
 						})).into(); cb},
+						action: Some(FileChooserAction::Open),
+						title: "Select attachments".into(),
+						select_multiple: true,
+						accept_label: "_Open".into(),
+						default_name: None,
 					});
 
 				let fut = async move {

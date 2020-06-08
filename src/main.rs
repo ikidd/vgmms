@@ -14,6 +14,7 @@ use std::boxed::Box;
 
 /* widgets */
 mod chat;
+mod file_chooser;
 mod input_box;
 mod new_chat;
 mod select_chat;

@@ -6,6 +6,7 @@ extern crate lazy_static;
 use vgtk::ext::*;
 use vgtk::lib::gio::{self, ActionExt, ApplicationFlags, SimpleAction};
 use vgtk::lib::gtk::{*, Box as GtkBox};
+use vgtk::lib::glib;
 use vgtk::{gtk, Component, UpdateAction, VNode};
 
 use std::default::Default;
@@ -56,6 +57,7 @@ enum UiMessage {
 	SelectChat,
 	DefineChat,
 	OpenChat(Vec<Number>),
+	SaveAttachmentDialog(AttachmentId),
 	Nop,
 }
 
@@ -205,6 +207,43 @@ impl Component for Model {
 				}
 				UpdateAction::Render
 			},
+			SaveAttachmentDialog(att_id) => {
+				let (notify, path_result) = futures::channel::oneshot::channel();
+
+				let att = match self.state.read().unwrap().attachments.get(&att_id) {
+					Some(att) => att.clone(),
+					None => {
+						eprintln!("attachment not found!");
+						return UpdateAction::None
+					},
+				};
+				let filename = att.name.to_str().unwrap_or("");
+
+				let fut = vgtk::run_dialog_props::<file_chooser::FileChooser>(vgtk::current_window().as_ref(),
+					file_chooser::FileChooser {
+						on_choose: {let cb: vgtk::Callback<Vec<std::path::PathBuf>> = Box::new(once::once(move |filenames| {
+							let _ = notify.send(filenames);
+						})).into(); cb},
+						action: Some(FileChooserAction::Save),
+						title: "Save attachment".into(),
+						select_multiple: false,
+						accept_label: "_Save".into(),
+						default_name: Some(filename.to_owned()),
+					});
+
+				let fut = async move {
+					if let Ok(ResponseType::Accept) = fut.await {
+						if let [path] = &*path_result.await.unwrap() {
+							att.clone().with_data(|data| {
+								std::fs::write(&path, data)
+							});
+						}
+					}
+					Nop
+				};
+
+				UpdateAction::Defer(Box::pin(fut))
+			},
 			Nop => {
 				UpdateAction::None
 			},
@@ -218,6 +257,9 @@ impl Component for Model {
 		let no_chats_open = state.open_chats.len() == 0;
 		gtk! {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
+				<SimpleAction::new("save-attachment-dialog",
+					Some(glib::VariantTy::new("t").unwrap())) enabled=true
+					on activate=|_a, id| UiMessage::SaveAttachmentDialog(id.unwrap().get().unwrap()) />
 				<SimpleAction::new("exit", None) Application::accels=["<Ctrl>q"].as_ref() enabled=true
 					on activate=|_a, _| UiMessage::Exit />
 				<SimpleAction::new("new-tab", None) Application::accels=["<Ctrl>t"].as_ref() enabled=true

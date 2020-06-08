@@ -87,7 +87,7 @@ impl VgmmsState {
 						data: (att.disk_path, att.start, att.len),
 					};
 					if let Err(e) = db::insert_attachment(&mut self.db_conn, &id, &att) {
-						eprintln!("error saving attachment to database: {}", e);
+						eprintln!("error saving attachment: {}", e);
 					}
 					self.attachments.insert(id, att);
 					contents.push(MessageItem::Attachment(id));

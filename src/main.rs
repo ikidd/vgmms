@@ -100,7 +100,7 @@ impl Component for Model {
 				if self.current_page >= 0 {
 					let chat = state.open_chats.remove(self.current_page as usize);
 					if let Err(e) = db::close_chat(&mut state.db_conn, &chat) {
-						eprintln!("error saving chat state to database: {}", e);
+						eprintln!("error saving chat state: {}", e);
 					}
 					if self.current_page >= state.open_chats.len() as i32 {
 						self.current_page -= 1;
@@ -193,12 +193,12 @@ impl Component for Model {
 						if state.chats.get(&chat).is_some() {
 							/* if chat exists but isn't open, set its tab */
 							if let Err(e) = db::set_chat_tab(&mut state.db_conn, &chat, self.current_page) {
-								eprintln!("error saving chat state to database: {}", e);
+								eprintln!("error saving chat state: {}", e);
 							}
 						} else {
 							/* if it doesn't, create it and save to db */
 							if let Err(e) = db::open_chat(&mut state.db_conn, &chat, self.current_page) {
-								eprintln!("error saving chat to database: {}", e);
+								eprintln!("error saving chat: {}", e);
 							}
 							state.chats.insert(chat.clone(), None);
 						}

@@ -86,8 +86,8 @@ impl ChatModel {
 						let text = format!("[{}] {}: {}", msg.time, msg.sender.to_string(), t);
 						gtk! { <Label label=text selectable=true line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=align /> }
 					},
-					MessageItem::Attachment(ref id) => {
-						let att = match state.attachments.get(id) {
+					MessageItem::Attachment(id) => {
+						let att = match state.attachments.get(&id) {
 							Some(att) => att,
 							None => {
 								return gtk! { <Label label=format!("[attachment {} not found]", id) xalign=align /> }
@@ -121,8 +121,18 @@ impl ChatModel {
 										};
 										gtk! { <Image property_surface=surf halign=halign /> }
 									}
+									let id = id.clone();
 									#[cfg(not(surface))]
-									gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> }
+									gtk! { <EventBox on map=|eb| {
+										let img_menu = gio::Menu::new();
+										let item = gio::MenuItem::new(Some("_Save as..."), None);
+										item.set_action_and_target_value(Some("app.save-attachment-dialog"), Some(&id.into()));
+										img_menu.append_item(&item);
+
+										let menu = Menu::new_from_model(&img_menu);
+										set_long_press_rightclick_menu(eb, menu);
+										UiMessageChat::Nop
+									}><Image pixbuf=Some(pixbuf) halign=halign /></EventBox> }
 								},
 								Ok(Err(e)) => gtk! { <Label label=format!("[image could not be loaded: {}]", e) xalign=align /> },
 								Err(e) => {

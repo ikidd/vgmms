@@ -70,6 +70,30 @@ fn set_long_press_rightclick_menu<P: gtk::prelude::IsA<Widget> + glib::value::Se
 	std::mem::forget(gest);
 }
 
+fn image_widget<T: Component>(pixbuf: Pixbuf, halign: gtk::Align) -> VNode<T> {
+	#[cfg(surface)]
+	{
+		use vgtk::lib::gdk;
+		let surf = {
+			let max_width = 100f64;
+			let width = pixbuf.get_width() as f64;
+			let width_scale = width / max_width;
+			let max_height = 100f64;
+			let height = pixbuf.get_height() as f64;
+			let height_scale = height / max_height;
+			let scale = width_scale.max(height_scale);
+			use gdk::prelude::{GdkPixbufExt, WindowExtManual};
+			let window = gdk::Window::get_default_root_window();
+			let surf = pixbuf.create_surface(1, &window).unwrap();
+			surf.set_device_scale(scale, scale);
+			surf
+		};
+		gtk! { <Image property_surface=surf halign=halign /> }
+	}
+	#[cfg(not(surface))]
+	gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> }
+}
+
 impl ChatModel {
 	fn generate_log_widgets<'a>(&'a self, state: &'a VgmmsState) -> impl Iterator<Item=VNode<Self>> + 'a {
 		state.messages.iter().filter_map(move |(_id, msg)| {
@@ -102,27 +126,8 @@ impl ChatModel {
 									load_image(data, dim, dim)
 								}) {
 								Ok(Ok(pixbuf)) => {
-									#[cfg(surface)]
-									{
-										use vgtk::lib::gdk;
-										let surf = {
-											let max_width = 100f64;
-											let width = pixbuf.get_width() as f64;
-											let width_scale = width / max_width;
-											let max_height = 100f64;
-											let height = pixbuf.get_height() as f64;
-											let height_scale = height / max_height;
-											let scale = width_scale.max(height_scale);
-											use gdk::prelude::{GdkPixbufExt, WindowExtManual};
-											let window = gdk::Window::get_default_root_window();
-											let surf = pixbuf.create_surface(1, &window).unwrap();
-											surf.set_device_scale(scale, scale);
-											surf
-										};
-										gtk! { <Image property_surface=surf halign=halign /> }
-									}
+									let image: VNode<Self> = image_widget(pixbuf, halign);
 									let id = id.clone();
-									#[cfg(not(surface))]
 									gtk! { <EventBox on map=|eb| {
 										let img_menu = gio::Menu::new();
 										let item = gio::MenuItem::new(Some("_Save as..."), None);
@@ -132,7 +137,8 @@ impl ChatModel {
 										let menu = Menu::new_from_model(&img_menu);
 										set_long_press_rightclick_menu(eb, menu);
 										UiMessageChat::Nop
-									}><Image pixbuf=Some(pixbuf) halign=halign /></EventBox> }
+										}>{image}</EventBox>
+									}
 								},
 								Ok(Err(e)) => gtk! { <Label label=format!("[image could not be loaded: {}]", e) xalign=align /> },
 								Err(e) => {

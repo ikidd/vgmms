@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection};
 use byteorder::WriteBytesExt;
 
 use crate::types::*;
@@ -75,36 +75,19 @@ unsafe fn bytes_to_chat(data: &[u8]) -> &[Number] {
 		data.len() / std::mem::size_of::<Number>())
 }
 
-pub fn open_chat(conn: &mut Connection, chat: &Chat, tab_id: i32) -> rusqlite::Result<()> {
-	assert!(tab_id >= 0);
-
+/* insert a chat into the db. fails if the chat already exists. */
+pub fn insert_chat(conn: &mut Connection, chat: &Chat, tab_id: i32, last_msg_id: Option<&MessageId>) -> rusqlite::Result<usize> {
 	let chat_bytes = chat_to_bytes(&*chat.numbers);
-	let tx = conn.transaction()?;
-	/* increase tab numbers after this one */
-	tx.execute("UPDATE chats SET tab_id = tab_id + 1 WHERE tab_id >= ?1;",
-		params![tab_id],
-	)?;
+	let last_msg_id = last_msg_id.unwrap_or(&[0u8; 20]);
+	let tab_id = if tab_id < 0 { None } else { Some(tab_id) };
 
-	/* get old last_msg_id */
-	let mut q = tx.prepare("SELECT last_msg_id FROM chats \
-		WHERE numbers = ?1")?;
-
-	let last_msg_id = q.query_row(params![chat_bytes], |row| {
-		Ok(get_id(row, 0).unwrap_or([0u8; 20]))
-	})
-		.optional()?
-		.unwrap_or([0u8; 20]);
-
-	drop(q);
-
-	/* update this chat */
-	tx.execute(
+	conn.execute(
 		"INSERT INTO chats (numbers, tab_id, last_msg_id) VALUES (?1, ?2, ?3);",
 		params![chat_bytes, tab_id, &last_msg_id[..]],
-	)?;
-	tx.commit()
+	)
 }
 
+/* set the open tab of an existing chat */
 pub fn set_chat_tab(conn: &mut Connection, chat: &Chat, tab_id: i32) -> rusqlite::Result<usize> {
 	conn.execute(
 		"UPDATE chats SET tab_id = ?1 WHERE numbers = ?2;",
@@ -112,6 +95,7 @@ pub fn set_chat_tab(conn: &mut Connection, chat: &Chat, tab_id: i32) -> rusqlite
 	)
 }
 
+/* close an existing chat */
 pub fn close_chat(conn: &mut Connection, chat: &Chat) -> rusqlite::Result<usize> {
 	conn.execute(
 		"UPDATE chats SET tab_id = NULL WHERE numbers = ?1;",

@@ -197,7 +197,7 @@ impl Component for Model {
 							}
 						} else {
 							/* if it doesn't, create it and save to db */
-							if let Err(e) = db::open_chat(&mut state.db_conn, &chat, self.current_page) {
+							if let Err(e) = db::insert_chat(&mut state.db_conn, &chat, self.current_page, None) {
 								eprintln!("error saving chat: {}", e);
 							}
 							state.chats.insert(chat.clone(), None);

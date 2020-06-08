@@ -38,6 +38,15 @@ impl VgmmsState {
 	}
 
 	pub fn add_message(&mut self, id: MessageId, message: MessageInfo) {
+		/* create a chat for it if one doesn't exist */
+		if !self.chats.get(&message.chat).is_some() {
+			let chat = Chat { numbers: message.chat.clone() };
+			if let Err(e) = db::insert_chat(&mut self.db_conn, &chat, -1, None) {
+				eprintln!("error while saving message: error saving chat: {}", e);
+			}
+			self.chats.insert(chat, None);
+		}
+
 		if let Err(e) = db::insert_message(&mut self.db_conn, &id, &message) {
 			eprintln!("error saving message: {}", e);
 		}

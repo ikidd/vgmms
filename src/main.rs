@@ -282,7 +282,17 @@ impl Component for Model {
 						} } else { gtk!{
 							<Notebook GtkBox::expand=true scrollable=true
 								property_page=self.current_page
-								on switch_page=|_nb, _pg, n| UiMessage::ChatChanged(n as i32)>
+								on switch_page=|_nb, _pg, n| UiMessage::ChatChanged(n as i32)
+								on page_added=|nb, child, n| {
+									if let Some(text) = child.get_widget_name() {
+										let label = Label::new(Some(&*text));
+										label.set_width_chars(12);
+										label.set_ellipsize(pango::EllipsizeMode::End);
+										label.set_tooltip_text(Some(&*text));
+										nb.set_tab_label(child, Some(&label));
+									};
+									UiMessage::Nop
+								}>
 								<GtkBox::new(Orientation::Horizontal, 0)
 									Notebook::action_widget_end=true>
 									<Button::new_from_icon_name(Some("window-close"), IconSize::Menu)
@@ -296,7 +306,7 @@ impl Component for Model {
 								</GtkBox>
 								{
 									self.state.read().unwrap().open_chats.iter().map(move |c| gtk! {
-										<EventBox Notebook::tab_label=c.get_name(&my_number)>
+										<EventBox Notebook::tab_expand=true widget_name=c.get_name(&my_number)>
 											<@ChatModel
 												chat=c
 												state=self.state.clone()

@@ -25,7 +25,6 @@ pub enum UiMessageInputBox {
 	AskForFile,
 	AddFile(PathBuf),
 	SetFiles(Vec<PathBuf>),
-	ClearFiles,
 	Clear,
 	Nop,
 }
@@ -112,10 +111,6 @@ impl Component for InputBoxModel {
 			},
 			SetFiles(paths) => {
 				self.file_paths = paths;
-				UpdateAction::Render
-			},
-			ClearFiles => {
-				self.file_paths.clear();
 				UpdateAction::Render
 			},
 			Clear => {

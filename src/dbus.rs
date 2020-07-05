@@ -320,8 +320,8 @@ pub fn start_recv() -> impl futures::Stream<Item=DbusNotification> {
 	let (mut sink, stream) = futures::channel::mpsc::channel(0);
 
 	// open buses
-	let mut sys_conn = Connection::new_system().expect("DBus connection failed");
-	let mut sess_conn = Connection::new_session().expect("DBus connection failed");
+	let sys_conn = Connection::new_system().expect("DBus connection failed");
+	let sess_conn = Connection::new_session().expect("DBus connection failed");
 
 	let sms_recv_rule = MatchRule::new_signal("org.ofono.MessageManager", "IncomingMessage");
 	let mut mms_recv_rule = MatchRule::new_signal("org.ofono.mms.Service", "MessageAdded");

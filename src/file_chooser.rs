@@ -45,18 +45,18 @@ impl Component for FileChooser {
 		let (action, title, accept_label, select_multiple) = (self.action, self.title.clone(),
 			self.accept_label.clone(), self.select_multiple);
 		let name = self.default_name.clone();
+		use crate::new_custom::NewCustom;
 		gtk! {
-			<FileChooserDialog::with_buttons(Some(&*title), None::<&Window>,
-				action.unwrap_or(FileChooserAction::Open),
-				&[("_Cancel", ResponseType::Cancel), (&*accept_label, ResponseType::Accept)])
+			<FileChooserDialog::new_custom(|| {
+					let chooser = FileChooserDialog::with_buttons(Some(&*title), None::<&Window>,
+					action.unwrap_or(FileChooserAction::Open),
+					&[("_Cancel", ResponseType::Cancel), (&*accept_label, ResponseType::Accept)]);
+					if let Some(ref name) = &name {
+						chooser.set_current_name(name.as_str());
+					}
+					chooser
+				})
 				select_multiple=select_multiple
-				widget_name=name.unwrap_or("".into())
-
-				on map=|chooser| {
-					if let Some(name) = chooser.get_widget_name() {
-						chooser.set_current_name(name.as_str())
-					}; UiMessageFileChooser::Nop
-				}
 				on response=|chooser, _resp| UiMessageFileChooser::Choose(chooser.get_filenames())
 			/>
 		}

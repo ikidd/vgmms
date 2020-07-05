@@ -103,11 +103,15 @@ impl ChatModel {
 				MessageStatus::Received => (0.0, gtk::Align::Start),
 				_ => (1.0, gtk::Align::End),
 			};
-			let widget_content = msg.contents.iter().map(|item| {
+			use chrono::offset::TimeZone;
+			if let chrono::offset::LocalResult::Single(time) = chrono::Local.timestamp_opt(msg.time as i64, 0) {
+				let _time = time.format("%k:%M");
+			}
+			let text = format!("{}", msg.sender.to_string());
+			let message_content = msg.contents.iter().map(move |item| {
 				match item {
 					MessageItem::Text(ref t) => {
-						let text = format!("[{}] {}: {}", msg.time, msg.sender.to_string(), t);
-						gtk! { <Label label=text selectable=true line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=align /> }
+						gtk! { <Label label=t.clone() selectable=true line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=align /> }
 					},
 					MessageItem::Attachment(id) => {
 						let att = match state.attachments.get(&id) {
@@ -159,7 +163,7 @@ impl ChatModel {
 			Some(gtk! {
 				<ListBoxRow selectable=false>
 					<GtkBox::new(Orientation::Vertical, 0)>
-						{widget_content}
+						{message_content}
 					</GtkBox>
 				</ListBoxRow>
 			})

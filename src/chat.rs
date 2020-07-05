@@ -95,7 +95,7 @@ fn image_widget<T: Component>(pixbuf: Pixbuf, halign: gtk::Align) -> VNode<T> {
 
 impl ChatModel {
 	fn generate_log_widgets<'a>(&'a self, state: &'a VgmmsState) -> impl Iterator<Item=VNode<Self>> + 'a {
-		state.messages.iter().filter_map(move |(_id, msg)| {
+		state.messages.iter().filter_map(move |(msg_id, msg)| {
 			if msg.chat != self.chat.numbers {
 				return None
 			}
@@ -126,11 +126,15 @@ impl ChatModel {
 								}) {
 								Ok(Ok(pixbuf)) => {
 									let image: VNode<Self> = image_widget(pixbuf, halign);
+									let msg_id = msg_id.clone();
 									let id = id.clone();
 									gtk! { <EventBox on map=|eb| {
 										let img_menu = gio::Menu::new();
 										let item = gio::MenuItem::new(Some("_Save as..."), None);
 										item.set_action_and_target_value(Some("app.save-attachment-dialog"), Some(&id.into()));
+										img_menu.append_item(&item);
+										let item = gio::MenuItem::new(Some("_Delete message"), None);
+										item.set_action_and_target_value(Some("app.delete-message"), Some(&hex::encode(&msg_id[..]).into()));
 										img_menu.append_item(&item);
 
 										let menu = Menu::new_from_model(&img_menu);

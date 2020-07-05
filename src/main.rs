@@ -62,6 +62,17 @@ enum UiMessage {
 	Nop,
 }
 
+fn apply_tab_label(nb: &Notebook, child: &Widget)
+{
+	if let Some(text) = child.get_widget_name() {
+		let label = Label::new(Some(&*text));
+		label.set_width_chars(12);
+		label.set_ellipsize(pango::EllipsizeMode::End);
+		label.set_tooltip_text(Some(&*text));
+		nb.set_tab_label(child, Some(&label));
+	}
+}
+
 impl Component for Model {
 	type Message = UiMessage;
 	type Properties = ();
@@ -281,18 +292,21 @@ impl Component for Model {
 								state=self.state.clone()
 								on select=|nums| UiMessage::OpenChat(nums)
 							/>
-						} } else { gtk!{
+						} } else { use gtk::prelude::NotebookExtManual; gtk!{
 							<Notebook GtkBox::expand=true scrollable=true
 								property_page=self.current_page
 								on switch_page=|_nb, _pg, n| UiMessage::ChatChanged(n as i32)
+								on page_removed=|nb, child, n| {
+									if let Some(ref prev) = nb.get_nth_page(Some(n-1)) {
+										apply_tab_label(nb, prev);
+									}
+									UiMessage::Nop
+								}
 								on page_added=|nb, child, n| {
-									if let Some(text) = child.get_widget_name() {
-										let label = Label::new(Some(&*text));
-										label.set_width_chars(12);
-										label.set_ellipsize(pango::EllipsizeMode::End);
-										label.set_tooltip_text(Some(&*text));
-										nb.set_tab_label(child, Some(&label));
-									};
+									apply_tab_label(nb, child);
+									if let Some(ref next) = nb.get_nth_page(Some(n+1)) {
+										apply_tab_label(nb, next);
+									}
 									UiMessage::Nop
 								}>
 								<GtkBox::new(Orientation::Horizontal, 0)
@@ -308,7 +322,9 @@ impl Component for Model {
 								</GtkBox>
 								{
 									self.state.read().unwrap().open_chats.iter().map(move |c| gtk! {
-										<EventBox Notebook::tab_expand=true widget_name=c.get_name(&my_number)>
+										<EventBox Notebook::tab_expand=true
+											Notebook::tab_label=c.get_name(&my_number)
+											widget_name=c.get_name(&my_number)>
 											<@ChatModel
 												chat=c
 												state=self.state.clone()

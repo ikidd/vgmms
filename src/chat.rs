@@ -15,13 +15,12 @@ use crate::input_box::*;
 #[derive(Clone, Default)]
 pub struct ChatModel {
 	pub state: Arc<RwLock<VgmmsState>>,
-	pub chat_log: Vec<MessageId>,
 	pub chat: Chat,
 }
 
 #[derive(Clone, Debug)]
 pub enum UiMessageChat {
-	NewMessage(MessageId),
+	NewMessage,
 	Send(Vec<DraftItem>),
 	AskDelete(MessageId),
 	Delete(MessageId),
@@ -180,8 +179,7 @@ impl Component for ChatModel {
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
 		use UiMessageChat::*;
 		match msg {
-			NewMessage(id) => {
-				self.chat_log.push(id);
+			NewMessage => {
 				UpdateAction::Render
 			},
 			Send(draft_items) => {
@@ -204,28 +202,24 @@ impl Component for ChatModel {
 						})
 					.collect()
 				};
-				let id = {
-					let mut state = self.state.write().unwrap();
-					let id = state.next_message_id();
-					let num = state.my_number;
-					let message = MessageInfo {
-						sender: num,
-						chat: self.chat.numbers.clone(),
-						time: chrono::offset::Local::now().timestamp() as u64,
-						contents: items,
-						status: MessageStatus::Sending,
-					};
-					println!("inserting send {}: {:?}", hex::encode(&id[..]), message);
-					match crate::dbus::send_message(&state.modem_path, &message, &state.attachments) {
-						Ok(_) => (),
-						Err(e) => eprintln!("error sending message: {}", e),
-					};
-					state.add_message(id.clone(), message);
-					id
+
+				let mut state = self.state.write().unwrap();
+				let id = state.next_message_id();
+				let num = state.my_number;
+				let message = MessageInfo {
+					sender: num,
+					chat: self.chat.numbers.clone(),
+					time: chrono::offset::Local::now().timestamp() as u64,
+					contents: items,
+					status: MessageStatus::Sending,
 				};
-				let fut = async move {
-					NewMessage(id)
+				println!("inserting send {}: {:?}", hex::encode(&id[..]), message);
+				match crate::dbus::send_message(&state.modem_path, &message, &state.attachments) {
+					Ok(_) => (),
+					Err(e) => eprintln!("error sending message: {}", e),
 				};
+				state.add_message(id.clone(), message);
+				let fut = async move { NewMessage };
 				UpdateAction::Defer(Box::pin(fut))
 			},
 			AskDelete(_msg_id) => {

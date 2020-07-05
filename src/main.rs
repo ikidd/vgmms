@@ -180,14 +180,15 @@ impl Component for Model {
 					return UpdateAction::None;
 				}
 
+				if state.open_chats.len() == 0 {
+					self.current_page = -1;
+				}
 				match state.open_chats.iter().enumerate().find(|&(_i, c)| c.numbers == nums) {
 					Some((idx, _c)) => {
 						self.current_page = idx as i32;
 					},
 					None => {
-						if self.current_page < 0 {
-							self.current_page = 0
-						}
+						self.current_page += 1;
 						let chat = Chat { numbers: nums };
 
 						if state.chats.get(&chat).is_some() {

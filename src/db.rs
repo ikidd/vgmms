@@ -19,7 +19,7 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 	conn.execute(
 		"CREATE TABLE chats (
 			numbers BLOB PRIMARY KEY,
-			tab_id INTEGER UNIQUE,
+			tab_id INTEGER,
 			last_msg_id BLOB
 		)", params![])?;
 	conn.execute(
@@ -76,21 +76,27 @@ unsafe fn bytes_to_chat(data: &[u8]) -> &[Number] {
 }
 
 /* insert a chat into the db. fails if the chat already exists. */
-pub fn insert_chat(conn: &mut Connection, chat: &Chat, tab_id: i32, last_msg_id: Option<&MessageId>) -> rusqlite::Result<usize> {
+pub fn insert_chat(conn: &mut Connection, chat: &Chat, tab_id: i32, last_msg_id: Option<&MessageId>) -> rusqlite::Result<()> {
 	let chat_bytes = chat_to_bytes(&*chat.numbers);
 	let last_msg_id = last_msg_id.unwrap_or(&[0u8; 20]);
 	let tab_id = if tab_id < 0 { None } else { Some(tab_id) };
 
-	conn.execute(
+	let tx = conn.transaction()?;
+	tx.execute(
+		"UPDATE chats SET tab_id = tab_id + 1 WHERE tab_id >= ?1;",
+		params![tab_id],
+	)?;
+	tx.execute(
 		"INSERT INTO chats (numbers, tab_id, last_msg_id) VALUES (?1, ?2, ?3);",
 		params![chat_bytes, tab_id, &last_msg_id[..]],
-	)
+	)?;
+	tx.commit()
 }
 
 /* set the open tab of an existing chat */
 pub fn set_chat_tab(conn: &mut Connection, chat: &Chat, tab_id: i32) -> rusqlite::Result<usize> {
 	conn.execute(
-		"UPDATE chats SET tab_id = ?1 WHERE numbers = ?2;",
+		"UPDATE chats SET tab_id = CASE WHEN numbers = ?2 THEN ?1 ELSE tab_id + 1 END WHERE tab_id >= ?1 or numbers = ?2;",
 		params![tab_id, chat_to_bytes(&*chat.numbers)],
 	)
 }
@@ -98,7 +104,7 @@ pub fn set_chat_tab(conn: &mut Connection, chat: &Chat, tab_id: i32) -> rusqlite
 /* close an existing chat */
 pub fn close_chat(conn: &mut Connection, chat: &Chat) -> rusqlite::Result<usize> {
 	conn.execute(
-		"UPDATE chats SET tab_id = NULL WHERE numbers = ?1;",
+		"UPDATE chats SET tab_id = CASE WHEN numbers = ?1 THEN NULL ELSE tab_id - 1 END WHERE tab_id >= (SELECT tab_id FROM chats WHERE numbers = ?1);",
 		params![chat_to_bytes(&*chat.numbers)],
 	)
 }

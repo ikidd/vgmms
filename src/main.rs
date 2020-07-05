@@ -146,6 +146,14 @@ impl Component for Model {
 					select_chat::SelectChatDialog {
 						state: self.state.clone(),
 						numbers_shared: numbers_shared.clone(),
+						on_new_chat: {let cb: vgtk::Callback<()> = Box::new(once::once(move |()| {
+							use glib::object::Cast;
+							let w = vgtk::current_object().unwrap();
+							let w = w.downcast_ref::<Widget>().unwrap();
+							let dialog = w.get_toplevel().unwrap();
+							let dialog = dialog.downcast_ref::<Dialog>().unwrap();
+							dialog.response(ResponseType::Other(0));
+						})).into(); cb},
 						numbers: vec![],
 					});
 
@@ -307,6 +315,7 @@ impl Component for Model {
 							<@select_chat::SelectChat
 								state=self.state.clone()
 								on select=|nums| UiMessage::OpenChat(nums)
+								on new_chat=|_| UiMessage::DefineChat
 							/>
 						} } else { use gtk::prelude::NotebookExtManual; gtk!{
 							<Notebook GtkBox::expand=true scrollable=true

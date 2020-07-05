@@ -10,12 +10,14 @@ use crate::types::*;
 pub struct SelectChat {
 	pub state: Arc<RwLock<VgmmsState>>,
 	pub on_select: Callback<Vec<Number>>,
+	pub on_new_chat: Callback<()>,
 	pub numbers: Vec<Number>,
 }
 
 #[derive(Clone, Debug)]
 pub enum UiMessageSelectChat {
 	SelectionChanged(usize),
+	NewChat,
 	Nop,
 }
 
@@ -46,6 +48,10 @@ impl Component for SelectChat {
 				};
 				self.numbers = nums;
 				self.on_select.send(self.numbers.clone());
+				UpdateAction::None
+			},
+			NewChat => {
+				self.on_new_chat.send(());
 				UpdateAction::None
 			},
 			Nop => {
@@ -107,6 +113,9 @@ impl Component for SelectChat {
 		gtk! {
 			<GtkBox::new(Orientation::Vertical, 0)
 				on parent_set=|w, _old| { set_expand_fill(w); UiMessageSelectChat::Nop }>
+				<GtkBox::new(Orientation::Horizontal, 0)>
+					<Button::new_from_icon_name(Some("add"), IconSize::Menu) on clicked=|_| UiMessageSelectChat::NewChat />
+				</GtkBox>
 				{
 					let chat_widgets = state.chats.iter().flat_map(|(c, info)| {
 						let desc = if let Some((_tm, msg_id)) = info {
@@ -139,12 +148,14 @@ impl Component for SelectChat {
 pub struct SelectChatDialog {
 	pub state: Arc<RwLock<VgmmsState>>,
 	pub numbers_shared: Arc<Mutex<Vec<Number>>>,
+	pub on_new_chat: Callback<()>,
 	pub numbers: Vec<Number>,
 }
 
 #[derive(Clone, Debug)]
 pub enum UiMessageSelectChatDialog {
 	Selected(Vec<Number>),
+	NewChat,
 }
 
 impl Component for SelectChatDialog {
@@ -167,6 +178,10 @@ impl Component for SelectChatDialog {
 				*self.numbers_shared.lock().unwrap() = nums;
 				UpdateAction::None
 			},
+			NewChat => {
+				self.on_new_chat.send(());
+				UpdateAction::None
+			},
 		}
 	}
 
@@ -176,13 +191,13 @@ impl Component for SelectChatDialog {
 			<Dialog::new_with_buttons(Some("Select chat"), vgtk::current_window().as_ref(),
 				DialogFlags::MODAL,
 				&[("_Cancel", ResponseType::Cancel),
-				("_New chat", ResponseType::Other(0)),
-				("_Select chat", ResponseType::Accept)])
+				("_Open", ResponseType::Accept)])
 				default_height=300
 			>
 				<@SelectChat
 					state=self.state.clone()
 					on select=|nums| {UiMessageSelectChatDialog::Selected(nums)}
+					on new_chat=|_| {UiMessageSelectChatDialog::NewChat}
 				/>
 			</Dialog>
 		}

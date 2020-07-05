@@ -29,7 +29,8 @@ pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<usize> {
 			chat BLOB,
 			time INTEGER,
 			contents BLOB,
-			status INTEGER
+			status INTEGER,
+			FOREIGN KEY(chat) REFERENCES chats(numbers)
 		)", params![])?;
 	conn.execute(
 		"CREATE TABLE attachments (
@@ -75,6 +76,15 @@ unsafe fn bytes_to_chat(data: &[u8]) -> &[Number] {
 		data.len() / std::mem::size_of::<Number>())
 }
 
+/* delete a chat and all associated messages from the db (but leaks their attachments).
+must call close_chat first! fails if the chat does not exist. */
+pub fn delete_chat(conn: &mut Connection, chat: &Chat) -> rusqlite::Result<usize> {
+	conn.execute(
+		"DELETE FROM chats where numbers = ?1;",
+		params![chat_to_bytes(&*chat.numbers)],
+	)
+}
+
 /* insert a chat into the db. fails if the chat already exists. */
 pub fn insert_chat(conn: &mut Connection, chat: &Chat, tab_id: i32, last_msg_id: Option<&MessageId>) -> rusqlite::Result<()> {
 	let chat_bytes = chat_to_bytes(&*chat.numbers);
@@ -109,6 +119,15 @@ pub fn close_chat(conn: &mut Connection, chat: &Chat) -> rusqlite::Result<usize>
 	)
 }
 
+/* delete a single message from the db. leaks any attachments the message might have. */
+pub fn delete_message(conn: &mut Connection, id: &MessageId) -> rusqlite::Result<usize> {
+	conn.execute(
+		"DELETE FROM messages where id = ?1;",
+		params![&id[..]],
+	)
+}
+
+/* insert a message to the db. the message's chat must already be present in the db. */
 pub fn insert_message(conn: &mut Connection, id: &MessageId, msg: &MessageInfo) -> rusqlite::Result<()> {
 	let chat_bytes: &[u8] = chat_to_bytes(&*msg.chat);
 

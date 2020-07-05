@@ -62,6 +62,15 @@ enum UiMessage {
 	Nop,
 }
 
+fn message_id_from_hex(s: &str) -> MessageId {
+	use std::io::Write;
+	let mut id = [0u8; 20];
+	if let Ok(bytes) = hex::decode(s) {
+		let _ = (&mut id[..]).write(&*bytes);
+	}
+	id
+}
+
 fn apply_tab_label(nb: &Notebook, child: &Widget)
 {
 	if let Some(text) = child.get_widget_name() {
@@ -92,8 +101,12 @@ impl Component for Model {
 				//
 				UpdateAction::None
 			},
-			Delete(_msg_id) => {
-				//messages.
+			Delete(msg_id) => {
+				let mut state = self.state.write().unwrap();
+				if let Err(e) = db::delete_message(&mut state.db_conn, &msg_id) {
+					eprintln!("error deleting message: {}", e);
+				}
+				state.messages.remove(&msg_id);
 				UpdateAction::Render
 			},
 			Exit => {
@@ -273,6 +286,9 @@ impl Component for Model {
 				<SimpleAction::new("save-attachment-dialog",
 					Some(glib::VariantTy::new("t").unwrap())) enabled=true
 					on activate=|_a, id| UiMessage::SaveAttachmentDialog(id.unwrap().get().unwrap()) />
+				<SimpleAction::new("delete-message",
+					Some(glib::VariantTy::new("s").unwrap())) enabled=true
+					on activate=|_a, id| UiMessage::Delete(message_id_from_hex(&id.unwrap().get::<String>().unwrap())) />
 				<SimpleAction::new("exit", None) Application::accels=["<Ctrl>q"].as_ref() enabled=true
 					on activate=|_a, _| UiMessage::Exit />
 				<SimpleAction::new("new-tab", None) Application::accels=["<Ctrl>t"].as_ref() enabled=true

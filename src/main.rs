@@ -268,9 +268,13 @@ impl Component for Model {
 				let fut = async move {
 					if let Ok(ResponseType::Accept) = fut.await {
 						if let [path] = &*path_result.await.unwrap() {
-							att.clone().with_data(|data| {
-								std::fs::write(&path, data)
-							});
+							if let Err(e) = att.clone().with_data(|data| {
+								if let Err(e) = std::fs::write(&path, data) {
+									eprintln!("error saving attachment: {}", e);
+								}
+							}) {
+								eprintln!("error loading attachment data to save it: {}", e);
+							}
 						}
 					}
 					Nop

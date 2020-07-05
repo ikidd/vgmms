@@ -141,7 +141,7 @@ impl Component for InputBoxModel {
 					on icon_press=|_entry, _pos, _ev| UiMessageInputBox::ToggleFile
 					on realize=|entry| { entry.grab_focus(); UiMessageInputBox::Nop }
 					on changed=|entry| {
-						let text = entry.get_text().map(|x| x.to_string()).unwrap_or_default();
+						let text = entry.get_text().to_string();
 						UiMessageInputBox::TextChanged(text)
 					}
 					on activate=|_| UiMessageInputBox::Send

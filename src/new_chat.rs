@@ -93,7 +93,7 @@ impl Component for NewChat {
 				/>
 			},
 			gtk! {
-				<Button::new_from_icon_name(Some("list-remove"), IconSize::Menu)
+				<Button::from_icon_name(Some("list-remove"), IconSize::Menu)
 					Grid::left=1 Grid::top={i as i32}
 					relief=ReliefStyle::None
 					on clicked=|_| UiMessageNewChat::Remove(i) />
@@ -103,7 +103,7 @@ impl Component for NewChat {
 		let can_add = self.num_addable(&*self.partial_num).is_some();
 		use vgtk::ext::WindowExtHelpers;
 		gtk! {
-			<Dialog::new_with_buttons(Some("New Chat"), vgtk::current_window().as_ref(),
+			<Dialog::with_buttons(Some("New Chat"), vgtk::current_window().as_ref(),
 				DialogFlags::MODAL | DialogFlags::DESTROY_WITH_PARENT,
 				&[("_Cancel", ResponseType::Cancel), ("_Open", ResponseType::Accept)])
 				default_height=300
@@ -129,7 +129,7 @@ impl Component for NewChat {
 							text=self.partial_num.clone()
 							input_purpose=InputPurpose::Phone
 							on changed=|entry| {
-								let text = entry.get_text().map(|x| x.to_string()).unwrap_or_default();
+								let text = entry.get_text().to_string();
 								UiMessageNewChat::NumChanged(text)
 							}
 							on activate=|_| UiMessageNewChat::Add

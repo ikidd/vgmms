@@ -29,8 +29,8 @@ pub enum UiMessageChat {
 
 fn load_image(data: &[u8], width: i32, height: i32) -> Result<Pixbuf, glib::Error> {
 	//TODO: reduce copying
-	let data_stream = gio::MemoryInputStream::new_from_bytes(&glib::Bytes::from_owned(data.to_vec()));
-	let pixbuf = Pixbuf::new_from_stream_at_scale(&data_stream,
+	let data_stream = gio::MemoryInputStream::from_bytes(&glib::Bytes::from_owned(data.to_vec()));
+	let pixbuf = Pixbuf::from_stream_at_scale(&data_stream,
 		width, height, true, None::<&gio::Cancellable>);
 	pixbuf
 }
@@ -83,7 +83,7 @@ fn image_widget<T: Component>(pixbuf: Pixbuf, halign: gtk::Align) -> VNode<T> {
 			let scale = width_scale.max(height_scale);
 			use gdk::prelude::{GdkPixbufExt, WindowExtManual};
 			let window = gdk::Window::get_default_root_window();
-			let surf = pixbuf.create_surface(1, &window).unwrap();
+			let surf = pixbuf.create_surface(1, Some(&window)).unwrap();
 			surf.set_device_scale(scale, scale);
 			surf
 		};
@@ -141,7 +141,7 @@ impl ChatModel {
 										item.set_action_and_target_value(Some("app.delete-message"), Some(&hex::encode(&msg_id[..]).into()));
 										img_menu.append_item(&item);
 
-										let menu = Menu::new_from_model(&img_menu);
+										let menu = Menu::from_model(&img_menu);
 										set_long_press_rightclick_menu(eb, menu);
 										UiMessageChat::Nop
 										}>{image}</EventBox>

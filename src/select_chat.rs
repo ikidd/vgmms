@@ -100,7 +100,7 @@ impl Component for SelectChat {
 			gtk! {
 				<ListBoxRow activatable=true>
 					<GtkBox::new(Orientation::Horizontal, 3)>
-						<Image::new_from_icon_name(Some("mail-read"), IconSize::Menu) />
+						<Image::from_icon_name(Some("mail-read"), IconSize::Menu) />
 						<Label text=label_markup
 							use_markup=true
 							xalign=0.0
@@ -114,7 +114,7 @@ impl Component for SelectChat {
 			<GtkBox::new(Orientation::Vertical, 0)
 				on parent_set=|w, _old| { set_expand_fill(w); UiMessageSelectChat::Nop }>
 				<GtkBox::new(Orientation::Horizontal, 0)>
-					<Button::new_from_icon_name(Some("add"), IconSize::Menu) on clicked=|_| UiMessageSelectChat::NewChat />
+					<Button::from_icon_name(Some("add"), IconSize::Menu) on clicked=|_| UiMessageSelectChat::NewChat />
 				</GtkBox>
 				{
 					let chat_widgets = state.chats.iter().flat_map(|(c, info)| {
@@ -188,7 +188,7 @@ impl Component for SelectChatDialog {
 	fn view(&self) -> VNode<Self> {
 		use vgtk::ext::WindowExtHelpers;
 		gtk! {
-			<Dialog::new_with_buttons(Some("Select chat"), vgtk::current_window().as_ref(),
+			<Dialog::with_buttons(Some("Select chat"), vgtk::current_window().as_ref(),
 				DialogFlags::MODAL,
 				&[("_Cancel", ResponseType::Cancel),
 				("_Open", ResponseType::Accept)])

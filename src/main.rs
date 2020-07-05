@@ -73,7 +73,8 @@ fn message_id_from_hex(s: &str) -> MessageId {
 
 fn apply_tab_label(nb: &Notebook, child: &Widget)
 {
-	if let Some(text) = child.get_widget_name() {
+	let text = child.get_widget_name();
+	if text != "" {
 		let label = Label::new(Some(&*text));
 		label.set_width_chars(12);
 		label.set_ellipsize(pango::EllipsizeMode::End);
@@ -310,7 +311,7 @@ impl Component for Model {
 				<ApplicationWindow default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
 					<GtkBox::new(Orientation::Vertical, 0)>{
 						if no_chats { gtk! {
-							<Button::new_from_icon_name(Some("list-add"), IconSize::Button)
+							<Button::from_icon_name(Some("list-add"), IconSize::Button)
 								GtkBox::expand=true valign=Align::Center
 								label="Start new chat"
 								on clicked=|_| UiMessage::DefineChat
@@ -340,11 +341,11 @@ impl Component for Model {
 								}>
 								<GtkBox::new(Orientation::Horizontal, 0)
 									Notebook::action_widget_end=true>
-									<Button::new_from_icon_name(Some("window-close"), IconSize::Menu)
+									<Button::from_icon_name(Some("window-close"), IconSize::Menu)
 										relief=ReliefStyle::None
 										on clicked=|_| UiMessage::CloseCurrentChat
 									/>
-									<Button::new_from_icon_name(Some("list-add"), IconSize::Menu)
+									<Button::from_icon_name(Some("list-add"), IconSize::Menu)
 										relief=ReliefStyle::None
 										on clicked=|_| {if no_chats { UiMessage::DefineChat } else { UiMessage::SelectChat }}
 									/>

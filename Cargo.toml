@@ -5,10 +5,10 @@ authors = ["anteater"]
 edition = "2018"
 
 [dependencies]
-gtk = { version = "0.8.1", features = ["v3_22"] }
+gtk = { version = "0.9", features = ["v3_22"] }
 vgtk = { git = "https://github.com/nt8r/vgtk/", branch = "master" }
 pretty_env_logger = "0.4"
-pango = "0.8"
+pango = "0.9"
 futures = "0.3"
 dbus = "0.8"
 chrono = "0.4"

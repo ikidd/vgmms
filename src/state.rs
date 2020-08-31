@@ -45,6 +45,8 @@ impl VgmmsState {
 				eprintln!("error while saving message: error saving chat: {}", e);
 			}
 			self.chats.insert(chat, None);
+		} else {
+			self.chats.insert(Chat { numbers: message.chat.clone() }, Some((message.time, id)));
 		}
 
 		if let Err(e) = db::insert_message(&mut self.db_conn, &id, &message) {

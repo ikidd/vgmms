@@ -18,19 +18,23 @@ The other [messaging stacks for linux](https://sr.ht/~anteater/mms-stack/) eithe
 
 ## installation
 
-1. install ofono and MMSd--you may need to use patched versions of these!
-	- [patched ofono](https://git.sr.ht/~anteater/ofono) fixes dual-stack IPv6 connectivity (needed for MMS at least with T-Mobile)
-	- [patched MMSd](https://git.sr.ht/~anteater/mmsd) fixes MMS parsing. whether you need this depends on your network's MMS implementation (again, at least T-Mobile seems to need this)
-	- if you're feeling brave, or too lazy to, install them from upstream ([ofono](https://git.kernel.org/pub/scm/network/ofono/ofono.git), [MMSd](https://git.kernel.org/pub/scm/network/ofono/mmsd.git/)) or your package manager and please [report if SMS and MMS work](https://todo.sr.ht/~anteater/mms-stack-bugs)!
+1. install ofono and MMSd
+	- you may need to use patched versions of these!
+		- [patched ofono](https://git.sr.ht/~anteater/ofono) fixes dual-stack IPv6 connectivity (needed for MMS at least with T-Mobile)
+		- [patched MMSd](https://git.sr.ht/~anteater/mmsd) fixes MMS parsing. whether you need this depends on your network's MMS implementation (again, at least T-Mobile seems to need this)
+	- if you're feeling brave, or too lazy to build from source, install them from upstream ([ofono](https://git.kernel.org/pub/scm/network/ofono/ofono.git), [MMSd](https://git.kernel.org/pub/scm/network/ofono/mmsd.git/)) or your package manager and please [report if SMS and MMS work](https://todo.sr.ht/~anteater/mms-stack-bugs)!
 2. make sure you have a Rust compilation toolchain, e.g. `pacman -S rust` or `curl https://sh.rustup.rs -sSf | sh`
 3. download the source: `git clone https://git.sr.ht/~anteater/vgmms`
 4. `cd vgmms`
-4. `cargo build --release`
+5. `cargo build --release`
+	- the `gtk` and `lalrpop` crates take a lot of RAM to build. if you run out of RAM on a PinePhone or other RAM-limited system, try the following:
+		- enable zram and/or swap
+		- pass `-j 1` to `cargo build`
 
 ## running
 
-1. make sure `ofonod` and `mmsd` are both running. be able to watch their logs for error messages.
-2. run `vgmms`
+1. run `ofonod` (as root) and `mmsd` (as your user). be able to watch their logs for error messages (e.g. run with `-n -d`).
+2. while the former two services are running, run `vgmms`
 3. if you have trouble (or don't), [please submit a bug (or success) report](https://todo.sr.ht/~anteater/mms-stack-bugs)!
 
 ## known bugs

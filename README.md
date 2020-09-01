@@ -6,7 +6,9 @@
 
 ## motivation
 
-The other [messaging stacks for linux](https://sr.ht/~anteater/mms-stack/) either have no plans to support MMS or do not handle media attachments correctly, and rely on outdated and unmaintained infrastructure (namely the telepathy framework). `vgmms` exists to do only SMS+MMS and intends to have feature parity with messaging clients for Android and iOS.
+The existing [messaging stacks for linux](https://sr.ht/~anteater/mms-stack/) are lacking in support for MMS, from unimplemented features to antiquated frameworks.
+
+`vgmms` exists to do only SMS+MMS and to have feature parity with messaging clients for Android and iOS.
 
 ## status
 

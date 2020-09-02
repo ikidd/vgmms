@@ -40,9 +40,12 @@ pub enum DbusNotification {
 pub enum ParseError {
 	BadMmsPath,
 	BadArgs,
-	BadSenderOrSentTime,
+	MissingSender,
+	MissingSentTime,
 	BadAttachments,
+	MissingAttachments,
 	BadRecipients,
+	MissingRecipients,
 }
 
 use DbusNotification::*;
@@ -58,16 +61,15 @@ fn parse_sms_message(msg: &dbus::Message) -> Result<DbusNotification, ParseError
 				_ => (),
 			}
 		}
-		if let (Some(sender), Some(date)) = (sender, date) {
-			//println!("{} @ {}: {}", sender, date, text)
-			Ok(SmsReceived {
-				message: text,
-				date: date,
-				sender: sender,
-			})
-		} else {
-			Err(ParseError::BadSenderOrSentTime)
-		}
+		let sender = sender.ok_or(ParseError::MissingSender)?;
+		let date = date.ok_or(ParseError::MissingSentTime)?;
+
+		//println!("{} @ {}: {}", sender, date, text)
+		Ok(SmsReceived {
+			message: text,
+			date: date,
+			sender: sender,
+		})
 	} else {
 		Err(ParseError::BadArgs)
 	}
@@ -143,20 +145,20 @@ fn parse_mms_message(msg: &dbus::Message) -> Result<DbusNotification, ParseError
 				_ => (),
 			}
 		}
-		if let (Some(sender), Some(date), Some(recipients), Some(attachments)) =
-			(sender, date, recipients, attachments) {
-			Ok(MmsReceived {
-				id: mms_id,
-				date: date,
-				subject: subject,
-				sender: sender,
-				recipients: recipients,
-				attachments: attachments,
-				smil: smil,
-			})
-		} else {
-			Err(ParseError::BadSenderOrSentTime)
-		}
+		let sender = sender.ok_or(ParseError::MissingSender)?;
+		let date = date.ok_or(ParseError::MissingSentTime)?;
+		let recipients = recipients.ok_or(ParseError::MissingRecipients)?;
+		let attachments = attachments.ok_or(ParseError::MissingAttachments)?;
+
+		Ok(MmsReceived {
+			id: mms_id,
+			date: date,
+			subject: subject,
+			sender: sender,
+			recipients: recipients,
+			attachments: attachments,
+			smil: smil,
+		})
 	} else {
 		Err(ParseError::BadArgs)
 	}
@@ -332,7 +334,7 @@ pub fn start_recv() -> impl futures::Stream<Item=DbusNotification> {
 	sys_conn.add_match(sms_recv_rule, move |_: (), _, msg| {
 		match parse_sms_message(&msg) {
 			Ok(notif) => sms_sink.try_send(notif).unwrap(),
-			Err(e) => eprintln!("{:?}", e),
+			Err(e) => eprintln!("SMS notification parse error: {:?}", e),
 		};
 		true
 	}).expect("add_match failed");
@@ -340,7 +342,7 @@ pub fn start_recv() -> impl futures::Stream<Item=DbusNotification> {
 	sess_conn.add_match(mms_recv_rule, move |_: (), _, msg| {
 		match parse_mms_message(&msg) {
 			Ok(notif) => sink.try_send(notif).unwrap(),
-			Err(e) => eprintln!("{:?}", e),
+			Err(e) => eprintln!("MMS notification parse error: {:?}", e),
 		};
 		true
 	}).expect("add_match failed");

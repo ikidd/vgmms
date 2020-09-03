@@ -104,10 +104,12 @@ impl ChatModel {
 				_ => (1.0, gtk::Align::End),
 			};
 			use chrono::offset::TimeZone;
-			if let chrono::offset::LocalResult::Single(time) = chrono::Local.timestamp_opt(msg.time as i64, 0) {
-				let _time = time.format("%k:%M");
-			}
-			let text = format!("{}", msg.sender.to_string());
+			let text = if let chrono::offset::LocalResult::Single(time) = chrono::Local.timestamp_opt(msg.time as i64, 0) {
+				format!("[{}] {}", time.format("%k:%M"), msg.sender.to_string())
+			} else {
+				format!("[@{}] {}", msg.time, msg.sender.to_string())
+			};
+			let name_time = gtk! { <Label label=text selectable=true line_wrap=true line_wrap_mode=pango::WrapMode::WordChar xalign=align /> };
 			let message_content = msg.contents.iter().map(move |item| {
 				match item {
 					MessageItem::Text(ref t) => {
@@ -163,6 +165,7 @@ impl ChatModel {
 			Some(gtk! {
 				<ListBoxRow selectable=false>
 					<GtkBox::new(Orientation::Vertical, 0)>
+						{name_time}
 						{message_content}
 					</GtkBox>
 				</ListBoxRow>

@@ -34,6 +34,23 @@ pub enum UiMessageNewChat {
 	Nop,
 }
 
+/* find an ancestor of a widget with the given type */
+fn find_ancestor<W: glib::IsA<Widget>, A: glib::IsA<Widget>>(w: &W) -> Option<A> {
+	use glib::object::Cast;
+	let mut w: Widget = w.clone().upcast();
+	let mut count = 10;
+	while let Some(parent) = w.get_parent() {
+		w = parent;
+		if let Some(_) = w.downcast_ref::<A>() {
+			return w.downcast::<A>().ok()
+		} else {
+		}
+		count -= 1;
+		if count == 0 { break }
+	}
+	None
+}
+
 impl Component for NewChat {
 	type Message = UiMessageNewChat;
 	type Properties = Self;
@@ -101,11 +118,13 @@ impl Component for NewChat {
 			].into_iter()
 		}
 		let can_add = self.num_addable(&*self.partial_num).is_some();
+		let can_open = self.numbers.len() > 0;
 		use vgtk::ext::WindowExtHelpers;
 		gtk! {
+			/* we use with_buttons so we can pass flags, but we create our own buttons */
 			<Dialog::with_buttons(Some("New Chat"), vgtk::current_window().as_ref(),
 				DialogFlags::MODAL | DialogFlags::DESTROY_WITH_PARENT,
-				&[("_Cancel", ResponseType::Cancel), ("_Open", ResponseType::Accept)])
+				&[])
 				default_height=300
 				>
 				<GtkBox::new(Orientation::Vertical, 0)
@@ -137,6 +156,15 @@ impl Component for NewChat {
 							property_secondary_icon_activatable=can_add
 							on icon_press=|_, _, _| UiMessageNewChat::Add
 							on realize=|entry| { entry.grab_focus(); UiMessageNewChat::Nop }
+						/>
+					</GtkBox>
+					/* buttons for the dialog */
+					<GtkBox::new(Orientation::Horizontal, 0) homogeneous=true >
+						<Button::from_icon_name(Some("gtk-cancel"), IconSize::Button) label="_Cancel" use_underline=true
+							on clicked=|w| { find_ancestor::<_, Dialog>(w).unwrap().response(ResponseType::Cancel); UiMessageNewChat::Nop }
+						/>
+						<Button::from_icon_name(Some("gtk-open"), IconSize::Button) label="_Open" use_underline=true sensitive=can_open
+							on clicked=|w| { find_ancestor::<_, Dialog>(w).unwrap().response(ResponseType::Accept); UiMessageNewChat::Nop }
 						/>
 					</GtkBox>
 				</GtkBox>

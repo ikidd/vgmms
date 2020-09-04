@@ -126,9 +126,10 @@ impl Component for NewChat {
 				DialogFlags::MODAL | DialogFlags::DESTROY_WITH_PARENT,
 				&[])
 				default_height=300
-				>
+			>
 				<GtkBox::new(Orientation::Vertical, 0)
-					on parent_set=|w, _old| { set_expand_fill(w); UiMessageNewChat::Nop }>
+					on parent_set=|w, _old| { set_expand_fill(w); UiMessageNewChat::Nop }
+				>
 					{
 						let number_widgets = self.numbers.iter().enumerate()
 							.flat_map(|(i, num)| create_row(i, *num));

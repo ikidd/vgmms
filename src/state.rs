@@ -55,6 +55,43 @@ impl VgmmsState {
 		self.messages.insert(id, message);
 	}
 
+	pub fn send_message(&mut self, chat: &Chat, draft_items: Vec<DraftItem>) {
+		if draft_items.len() == 0 {
+			return
+		}
+		let items = {
+			draft_items.into_iter().map(|item| match item {
+				DraftItem::Attachment(att) =>
+					MessageItem::Attachment({
+						let id = self.next_attachment_id();
+						if let Err(e) = db::insert_attachment(&mut self.db_conn, &id, &att) {
+							eprintln!("error saving attachment: {}", e);
+						}
+						self.attachments.insert(id, att);
+						id
+					}),
+				DraftItem::Text(t) => MessageItem::Text(t),
+				})
+			.collect()
+		};
+
+		let id = self.next_message_id();
+		let num = self.my_number;
+		let message = MessageInfo {
+			sender: num,
+			chat: chat.numbers.clone(),
+			time: chrono::offset::Local::now().timestamp() as u64,
+			contents: items,
+			status: MessageStatus::Sending,
+		};
+		println!("inserting send {}: {:?}", hex::encode(&id[..]), message);
+		match crate::dbus::send_message(&self.modem_path, &message, &self.attachments) {
+			Ok(_) => (),
+			Err(e) => eprintln!("error sending message: {}", e),
+		};
+		self.add_message(id.clone(), message);
+	}
+
 	pub fn handle_notif(&mut self, notif: dbus::DbusNotification) {
 		use self::dbus::DbusNotification::*;
 		match notif {

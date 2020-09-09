@@ -49,7 +49,7 @@ struct Model {
 #[derive(Clone, Debug)]
 enum UiMessage {
 	Notif(dbus::DbusNotification),
-	Send(Vec<MessageItem>, Chat),
+	Send((Chat, Vec<DraftItem>)),
 	AskDelete(MessageId),
 	Delete(MessageId),
 	Exit,
@@ -95,7 +95,12 @@ impl Component for Model {
 				state.handle_notif(notif);
 				UpdateAction::Render
 			},
-			Send(_mi, _chat) => {
+			Send((chat, draft_items)) => {
+				if draft_items.len() == 0 {
+					return UpdateAction::None
+				}
+				let mut state = self.state.write().unwrap();
+				state.send_message(&chat, draft_items);
 				UpdateAction::Render
 			},
 			AskDelete(_msg_id) => {
@@ -358,6 +363,7 @@ impl Component for Model {
 											<@ChatModel
 												chat=c
 												state=self.state.clone()
+												on send=|c_drafts| UiMessage::Send(c_drafts)
 											/>
 										</EventBox>})
 								}

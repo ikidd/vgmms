@@ -187,11 +187,12 @@ impl Component for Model {
 			DefineChat => {
 				use std::sync::Mutex;
 				let numbers_shared: Arc<Mutex<Vec<Number>>> = Default::default();
+				let state = self.state.read().unwrap();
 
 				let fut = vgtk::run_dialog_props::<new_chat::NewChat>(vgtk::current_window().as_ref(),
 					new_chat::NewChat {
-						my_number: self.state.read().unwrap().my_number,
-						my_country: Some(self.state.read().unwrap().my_country),
+						my_number: state.my_number,
+						my_country: Some(state.my_country),
 						numbers: vec![],
 						partial_num: String::new(),
 						numbers_shared: numbers_shared.clone(),
@@ -250,9 +251,10 @@ impl Component for Model {
 				UpdateAction::Render
 			},
 			SaveAttachmentDialog(att_id) => {
+				let state = self.state.read().unwrap();
 				let (notify, path_result) = futures::channel::oneshot::channel();
 
-				let att = match self.state.read().unwrap().attachments.get(&att_id) {
+				let att = match state.attachments.get(&att_id) {
 					Some(att) => att.clone(),
 					None => {
 						eprintln!("attachment not found!");
@@ -359,7 +361,7 @@ impl Component for Model {
 									/>
 								</GtkBox>
 								{
-									self.state.read().unwrap().open_chats.iter().map(move |c| gtk! {
+									state.open_chats.iter().map(move |c| gtk! {
 										<EventBox Notebook::tab_expand=true
 											Notebook::tab_label=c.get_name(&my_number)
 											widget_name=c.get_name(&my_number)>

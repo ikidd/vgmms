@@ -27,11 +27,17 @@ pub enum UiMessageChat {
 }
 
 fn load_image(data: &[u8], width: i32, height: i32) -> Result<Pixbuf, glib::Error> {
-	//TODO: reduce copying
-	let data_stream = gio::MemoryInputStream::from_bytes(&glib::Bytes::from_owned(data.to_vec()));
-	let pixbuf = Pixbuf::from_stream_at_scale(&data_stream,
-		width, height, true, None::<&gio::Cancellable>);
-	pixbuf
+	let loader = gdk_pixbuf::PixbufLoader::new();
+	use gdk_pixbuf::PixbufLoaderExt;
+	if width >= 0 && height >= 0 {
+		loader.set_size(width, height);
+	}
+	loader.write(data)?;
+	loader.close()?;
+	match loader.get_pixbuf() {
+		Some(p) => Ok(p),
+		None => Err(glib::Error::new(gdk_pixbuf::PixbufError::Failed, "image could not be loaded"))
+	}
 }
 
 fn set_long_press_rightclick_menu<P: gtk::prelude::IsA<Widget> + glib::value::SetValueOptional>(w: &P, menu: Menu) {

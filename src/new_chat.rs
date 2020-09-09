@@ -17,12 +17,12 @@ pub struct NewChat {
 
 impl NewChat {
 	fn num_addable(&self, num_str: &str) -> Option<Number> {
-		if let Some(n) = Number::normalize(num_str, self.my_country.unwrap()) {
-			if !self.numbers.contains(&n) {
-				return Some(n)
-			}
+		let n = Number::normalize(num_str, self.my_country.unwrap())?;
+		if !self.numbers.contains(&n) {
+			Some(n)
+		} else {
+			None
 		}
-		None
 	}
 }
 

@@ -61,7 +61,12 @@ impl VgmmsState {
 					},
 				}
 			}
-			let summary = format!("[{}] {}: {}", msg.time, msg.sender.to_string(), summary);
+			use chrono::offset::TimeZone;
+			let summary = if let chrono::offset::LocalResult::Single(time) = chrono::Local.timestamp_opt(msg.time as i64, 0) {
+				format!("[{}] {}: {}", time.format("%k:%M"), msg.sender.to_string(), summary)
+			} else {
+				format!("[@{}] {}: {}", msg.time, msg.sender.to_string(), summary)
+			};
 			println!("summary: {}", summary);
 			summary
 		} else {

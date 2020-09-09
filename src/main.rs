@@ -301,6 +301,7 @@ impl Component for Model {
 	fn view(&self) -> VNode<Model> {
 		let state = self.state.read().unwrap();
 		let my_number = state.my_number;
+		let my_country = state.my_country;
 		let no_chats = state.chats.len() == 0;
 		let no_chats_open = state.open_chats.len() == 0;
 		let actions = vec![
@@ -320,6 +321,29 @@ impl Component for Model {
 			/>},
 			gtk! {<SimpleAction::new("close-tab", None) Application::accels=["<Ctrl>w"].as_ref() enabled=true
 				on activate=|_a, _| UiMessage::CloseCurrentChat
+			/>},
+			gtk! {<SimpleAction::new("open-chat",
+				/* the glib crate has not yet released a version with array variant support */
+				Some(glib::VariantTy::new("s"/*"as"*/).unwrap())) enabled=true
+				on activate=|_a, num_strs| {
+					/*let num_strs = num_strs.unwrap().get::<Vec<String>>();*/
+					let nums_str = num_strs.unwrap().get::<String>().unwrap();
+					let mut valid = true;
+					let mut nums = vec![];
+					for num_str in nums_str.split(',') {
+						if let Some(n) = Number::normalize(num_str, my_country) {
+							nums.push(n);
+						} else {
+							eprintln!("could not parse number '{}'", num_str);
+							valid = false;
+						}
+					}
+					if valid {
+						UiMessage::OpenChat(nums)
+					} else {
+						UiMessage::Nop
+					}
+				}
 			/>},
 		].into_iter();
 		gtk! {

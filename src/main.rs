@@ -303,20 +303,28 @@ impl Component for Model {
 		let my_number = state.my_number;
 		let no_chats = state.chats.len() == 0;
 		let no_chats_open = state.open_chats.len() == 0;
+		let actions = vec![
+			gtk! {<SimpleAction::new("save-attachment-dialog",
+				Some(glib::VariantTy::new("t").unwrap())) enabled=true
+				on activate=|_a, id| UiMessage::SaveAttachmentDialog(id.unwrap().get().unwrap())
+			/>},
+			gtk! {<SimpleAction::new("delete-message",
+				Some(glib::VariantTy::new("s").unwrap())) enabled=true
+				on activate=|_a, id| UiMessage::Delete(message_id_from_hex(&id.unwrap().get::<String>().unwrap()))
+			/>},
+			gtk! {<SimpleAction::new("exit", None) Application::accels=["<Ctrl>q"].as_ref() enabled=true
+				on activate=|_a, _| UiMessage::Exit
+			/>},
+			gtk! {<SimpleAction::new("new-tab", None) Application::accels=["<Ctrl>t"].as_ref() enabled=true
+				on activate=|_a, _| UiMessage::SelectChat
+			/>},
+			gtk! {<SimpleAction::new("close-tab", None) Application::accels=["<Ctrl>w"].as_ref() enabled=true
+				on activate=|_a, _| UiMessage::CloseCurrentChat
+			/>},
+		].into_iter();
 		gtk! {
 			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
-				<SimpleAction::new("save-attachment-dialog",
-					Some(glib::VariantTy::new("t").unwrap())) enabled=true
-					on activate=|_a, id| UiMessage::SaveAttachmentDialog(id.unwrap().get().unwrap()) />
-				<SimpleAction::new("delete-message",
-					Some(glib::VariantTy::new("s").unwrap())) enabled=true
-					on activate=|_a, id| UiMessage::Delete(message_id_from_hex(&id.unwrap().get::<String>().unwrap())) />
-				<SimpleAction::new("exit", None) Application::accels=["<Ctrl>q"].as_ref() enabled=true
-					on activate=|_a, _| UiMessage::Exit />
-				<SimpleAction::new("new-tab", None) Application::accels=["<Ctrl>t"].as_ref() enabled=true
-					on activate=|_a, _| UiMessage::SelectChat />
-				<SimpleAction::new("close-tab", None) Application::accels=["<Ctrl>w"].as_ref() enabled=true
-					on activate=|_a, _| UiMessage::CloseCurrentChat />
+				{actions}
 				<ApplicationWindow default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
 					<GtkBox::new(Orientation::Vertical, 0)>{
 						if no_chats { gtk! {

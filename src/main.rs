@@ -347,9 +347,14 @@ impl Component for Model {
 			/>},
 		].into_iter();
 		gtk! {
-			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::empty())>
+			<Application::new_unwrap(Some("org.vgmms"), ApplicationFlags::REPLACE)>
 				{actions}
-				<ApplicationWindow default_width=180 default_height=300 border_width=5 on destroy=|_| UiMessage::Exit>
+				<ApplicationWindow default_width=180 default_height=300 border_width=5
+					on realize=|w| {
+						w.connect_delete_event(|w, _ev| { w.hide(); glib::signal::Inhibit(true) });
+						UiMessage::Nop
+					}
+				>
 					<GtkBox::new(Orientation::Vertical, 0)>{
 						if no_chats { gtk! {
 							<Button::from_icon_name(Some("list-add"), IconSize::Button)
@@ -415,18 +420,44 @@ impl Component for Model {
 
 fn main() {
 	use gio::prelude::ApplicationExtManual;
+	use vgtk::lib::gio::ApplicationExt;
 	use futures::stream::StreamExt;
 
+	/* determine if a running instance exists and message it if so */
+	let query_app = Application::new(Some("org.vgmms"), ApplicationFlags::ALLOW_REPLACEMENT|ApplicationFlags::IS_LAUNCHER).unwrap();
+	if query_app.register(None::<&gio::Cancellable>).is_ok() {
+		if query_app.get_is_remote() {
+			std::process::exit(query_app.run(&*std::env::args().collect::<Vec<_>>()));
+		}
+	}
+	drop(query_app);
+
+	/* receive notifications of new/updated SMS and MMS messages from DBus */
 	let notif_stream = dbus::start_recv();
 	pretty_env_logger::init();
 	let (app, scope) = vgtk::start::<Model>();
+	let scope_ = scope.clone();
 	std::thread::spawn(
 		move || futures::executor::block_on(
 			notif_stream.for_each(move |notif| {
 				println!("notif sent!");
-				scope.try_send(UiMessage::Notif(notif)).unwrap();
+				scope_.try_send(UiMessage::Notif(notif)).unwrap();
 				futures::future::ready(())
 			}))
 	);
+
+	/* handle messages to the running application instance */
+	let scope_ = scope.clone();
+	app.connect_command_line(move |_app, _args| {
+		scope_.try_send(UiMessage::Nop).unwrap();
+		0
+	});
+	app.connect_activate(move |app| {
+		if let Some(w) = app.get_active_window() {
+			w.present_with_time(0);
+		}
+		scope.try_send(UiMessage::Nop).unwrap();
+	});
+
 	std::process::exit(app.run(&[]));
 }

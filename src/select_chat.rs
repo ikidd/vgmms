@@ -2,13 +2,14 @@ use vgtk::lib::{glib, gtk::{*, Box as GtkBox}};
 use vgtk::{gtk, Callback, Component, UpdateAction, VNode};
 
 use std::default::Default;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 
 use crate::types::*;
 
 #[derive(Clone, Default)]
 pub struct SelectChat {
-	pub state: Arc<RwLock<VgmmsState>>,
+	pub my_number: Number,
+	pub chats_summaries: Vec<(Chat, String)>,
 	pub on_select: Callback<Vec<Number>>,
 	pub on_new_chat: Callback<()>,
 	pub numbers: Vec<Number>,
@@ -38,9 +39,8 @@ impl Component for SelectChat {
 		use UiMessageSelectChat::*;
 		match msg {
 			SelectionChanged(chat_idx) => {
-				let state = self.state.read().unwrap();
-				let nums = match state.chats.iter().nth(chat_idx) {
-					Some(cm) => cm.0.numbers.clone(),
+				let nums = match self.chats_summaries.iter().nth(chat_idx) {
+					Some((c, _summary)) => c.numbers.clone(),
 					None => {
 						eprintln!("selected chat could not be found!");
 						return UpdateAction::Render
@@ -61,28 +61,6 @@ impl Component for SelectChat {
 	}
 
 	fn view(&self) -> VNode<Self> {
-		let state = self.state.read().unwrap();
-		fn summarize(msg_id: &MessageId, state: &VgmmsState) -> String {
-			if let Some(msg) = state.messages.get(msg_id) {
-				let mut summary = String::new();
-				for item in &msg.contents {
-					match item {
-						MessageItem::Text(ref t) => {
-							summary.push_str(t);
-						},
-						MessageItem::Attachment(ref id) => {
-							match state.attachments.get(id) {
-								Some(att) => summary.push_str(&format!("[attachment of type {}]", att.mime_type)),
-								None => summary.push_str("[attachment {} not found]"),
-							};
-						},
-					}
-				}
-				format!("[{}] {}: {}", msg.time, msg.sender.to_string(), summary)
-			} else {
-				"".into()
-			}
-		}
 		fn set_expand_fill<P: glib::IsA<Widget>>(w: &P) {
 			if let Some(p) = w.get_parent() {
 				use glib::object::Cast;
@@ -117,15 +95,10 @@ impl Component for SelectChat {
 					<Button::from_icon_name(Some("add"), IconSize::Menu) on clicked=|_| UiMessageSelectChat::NewChat />
 				</GtkBox>
 				{
-					let chat_widgets = state.chats.iter().flat_map(|(c, info)| {
-						let desc = if let Some((_tm, msg_id)) = info {
-								summarize(msg_id, &state)
-							} else {
-								"".into()
-							};
-						create_chat_row(c, &desc, &state.my_number)
-					});
-					if state.chats.len() > 0 { gtk! {
+					let chat_widgets = self.chats_summaries.iter().map(
+						|(c, desc)| create_chat_row(c, &desc, &self.my_number)
+					);
+					if self.chats_summaries.len() > 0 { gtk! {
 						<ScrolledWindow GtkBox::fill=true GtkBox::expand=true>
 							<ListBox
 								on row_activated=|_box, row| UiMessageSelectChat::SelectionChanged(row.get_index() as usize)
@@ -146,7 +119,8 @@ impl Component for SelectChat {
 
 #[derive(Clone, Default)]
 pub struct SelectChatDialog {
-	pub state: Arc<RwLock<VgmmsState>>,
+	pub my_number: Number,
+	pub chats_summaries: Vec<(Chat, String)>,
 	pub numbers_shared: Arc<Mutex<Vec<Number>>>,
 	pub on_new_chat: Callback<()>,
 	pub numbers: Vec<Number>,
@@ -195,7 +169,8 @@ impl Component for SelectChatDialog {
 				default_height=300
 			>
 				<@SelectChat
-					state=self.state.clone()
+					my_number=self.my_number.clone()
+					chats_summaries=self.chats_summaries.clone()
 					on select=|nums| {UiMessageSelectChatDialog::Selected(nums)}
 					on new_chat=|_| {UiMessageSelectChatDialog::NewChat}
 				/>

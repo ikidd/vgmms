@@ -147,10 +147,12 @@ impl Component for Model {
 			SelectChat => {
 				use std::sync::Mutex;
 				let numbers_shared: Arc<Mutex<Vec<Number>>> = Default::default();
+				let state = self.state.read().unwrap();
 
 				let fut = vgtk::run_dialog_props::<select_chat::SelectChatDialog>(vgtk::current_window().as_ref(),
 					select_chat::SelectChatDialog {
-						state: self.state.clone(),
+						my_number: state.my_number,
+						chats_summaries: state.summarize_all(),
 						numbers_shared: numbers_shared.clone(),
 						on_new_chat: {let cb: vgtk::Callback<()> = Box::new(once::once(move |()| {
 							use glib::object::Cast;
@@ -323,7 +325,8 @@ impl Component for Model {
 							/>
 						} } else if no_chats_open { gtk! {
 							<@select_chat::SelectChat
-								state=self.state.clone()
+								my_number=my_number
+								chats_summaries=state.summarize_all()
 								on select=|nums| UiMessage::OpenChat(nums)
 								on new_chat=|_| UiMessage::DefineChat
 							/>

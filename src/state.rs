@@ -37,6 +37,38 @@ impl VgmmsState {
 		id
 	}
 
+	pub fn summarize_all(&self) -> Vec<(Chat, String)> {
+		println!("summarize_all");
+		self.chats.iter().map(|(c, maybe_ts_msg)| (c.clone(), match maybe_ts_msg {
+			Some((_, msg_id)) => self.summarize(msg_id),
+			_ => "".into(),
+		})).collect()
+	}
+
+	pub fn summarize(&self, msg_id: &MessageId) -> String {
+		if let Some(msg) = self.messages.get(msg_id) {
+			let mut summary = String::new();
+			for item in &msg.contents {
+				match item {
+					MessageItem::Text(ref t) => {
+						summary.push_str(t);
+					},
+					MessageItem::Attachment(ref id) => {
+						match self.attachments.get(id) {
+							Some(att) => summary.push_str(&format!("[attachment of type {}]", att.mime_type)),
+							None => summary.push_str("[attachment {} not found]"),
+						};
+					},
+				}
+			}
+			let summary = format!("[{}] {}: {}", msg.time, msg.sender.to_string(), summary);
+			println!("summary: {}", summary);
+			summary
+		} else {
+			"".into()
+		}
+	}
+
 	pub fn add_message(&mut self, id: MessageId, message: MessageInfo) {
 		/* create a chat for it if one doesn't exist */
 		if !self.chats.get(&message.chat).is_some() {

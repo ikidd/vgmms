@@ -5,24 +5,27 @@ authors = ["anteater"]
 edition = "2018"
 
 [dependencies]
+
+byteorder = "1.3"
+#uncomment for #[cfg(surface)]
+#cairo-rs = { version = "*", features = ["v1_14"] }
+chrono = "0.4"
+dbus = "0.8"
+futures = "0.3"
+gdk-pixbuf = "0.9"
 #patched until a released version contains a fix for https://github.com/gtk-rs/gtk/issues/1051
 gtk = { git = "https://github.com/nt8r/gtk", branch = "0.9", features = ["embed-lgpl-docs", "v3_22"], version = "0.9.2" }
-
-vgtk = { git = "https://github.com/nt8r/vgtk/", branch = "master" }
-gdk-pixbuf = "0.9"
-pretty_env_logger = "0.4"
-pango = "0.9"
-futures = "0.3"
-dbus = "0.8"
-chrono = "0.4"
-tree_magic = "0.2"
 hex = "0.4"
-memmap = "0.7"
-rusqlite = "0.23"
-byteorder = "1.3"
-rand = "0.6.5"
 lazy_static = "1.4"
+memmap = "0.7"
+pango = "0.9"
 phonenumber = "0.2"
+pretty_env_logger = "0.4"
+rand = "0.6.5"
+rusqlite = "0.23"
+tree_magic = "0.2"
+#fork for a few fixes
+vgtk = { git = "https://github.com/nt8r/vgtk", branch = "master" }
 xdg-basedir = "1"
 
 [patch.crates-io]

@@ -39,7 +39,18 @@ impl VgmmsState {
 
 	pub fn summarize_all(&self) -> Vec<(Chat, String)> {
 		println!("summarize_all");
-		self.chats.iter().map(|(c, maybe_ts_msg)| (c.clone(), match maybe_ts_msg {
+		let mut sorted = self.chats.iter().collect::<Vec<_>>();
+		/* sort chats by highest timestamp, treating any as greater than none */
+		sorted.sort_by(|(_c1, md1), (_c2, md2)| {
+			match (md1, md2) {
+				(Some((t1, _id1)), Some((t2, _id2))) => t2.cmp(t1),
+				(Some(_), None) => std::cmp::Ordering::Less,
+				(None, Some(_)) => std::cmp::Ordering::Greater,
+				(None, None) => std::cmp::Ordering::Equal,
+			}
+		});
+		/* summarize each chat */
+		sorted.into_iter().map(|(c, maybe_ts_msg)| (c.clone(), match maybe_ts_msg {
 			Some((_, msg_id)) => self.summarize(msg_id),
 			_ => "".into(),
 		})).collect()

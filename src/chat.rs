@@ -29,9 +29,17 @@ pub enum UiMessageChat {
 fn load_image(data: &[u8], width: i32, height: i32) -> Result<Pixbuf, glib::Error> {
 	let loader = gdk_pixbuf::PixbufLoader::new();
 	use gdk_pixbuf::PixbufLoaderExt;
-	if width >= 0 && height >= 0 {
-		loader.set_size(width, height);
-	}
+	/* if width and height are given, scale to keep resulting size below them */
+	loader.connect_size_prepared(move |loader, actual_width, actual_height| {
+		if width >= 0 && height >= 0 {
+			let width_ratio = width as f64 / actual_width as f64;
+			let height_ratio = height as f64 / actual_height as f64;
+			let ratio = width_ratio.min(height_ratio);
+			let new_width = (actual_width as f64 * ratio) as i32;
+			let new_height = (actual_height as f64 * ratio) as i32;
+			loader.set_size(new_width, new_height);
+		}
+	});
 	loader.write(data)?;
 	loader.close()?;
 	match loader.get_pixbuf() {

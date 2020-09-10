@@ -423,14 +423,7 @@ fn main() {
 	use vgtk::lib::gio::ApplicationExt;
 	use futures::stream::StreamExt;
 
-	/* determine if a running instance exists and message it if so */
-	let query_app = Application::new(Some("org.vgmms"), ApplicationFlags::ALLOW_REPLACEMENT|ApplicationFlags::IS_LAUNCHER).unwrap();
-	if query_app.register(None::<&gio::Cancellable>).is_ok() {
-		if query_app.get_is_remote() {
-			std::process::exit(query_app.run(&*std::env::args().collect::<Vec<_>>()));
-		}
-	}
-	drop(query_app);
+	let args = &*std::env::args().collect::<Vec<_>>();
 
 	/* receive notifications of new/updated SMS and MMS messages from DBus */
 	let notif_stream = dbus::start_recv();
@@ -443,21 +436,44 @@ fn main() {
 				println!("notif sent!");
 				scope_.try_send(UiMessage::Notif(notif)).unwrap();
 				futures::future::ready(())
-			}))
+		}))
 	);
 
-	/* handle messages to the running application instance */
-	let scope_ = scope.clone();
-	app.connect_command_line(move |_app, _args| {
-		scope_.try_send(UiMessage::Nop).unwrap();
-		0
-	});
-	app.connect_activate(move |app| {
-		if let Some(w) = app.get_active_window() {
-			w.present_with_time(0);
+	/* add options */
+	app.add_main_option("daemon", glib::Char('d' as i8), glib::OptionFlags::NONE, glib::OptionArg::None,
+		"run in the background without opening a window",
+		None);
+	
+	/* do we need to hide the newly-created window? */
+	let daemon = std::rc::Rc::new(std::cell::RefCell::new(false));
+
+	/* handle command-line arguments */
+	let daemon_ = daemon.clone();
+	app.connect_handle_local_options(move |_app, args_dict| {
+		if let Some(daemon_arg) = args_dict.lookup_value("daemon", Some(glib::VariantTy::new("b").unwrap())) {
+			if daemon_arg.get::<bool>().unwrap() {
+				daemon_.replace(true);
+			}
 		}
-		scope.try_send(UiMessage::Nop).unwrap();
+		-1
 	});
 
-	std::process::exit(app.run(&[]));
+	/* present the window when the application is remotely activated */
+	let daemon_ = daemon.clone();
+	app.connect_activate(move |app| {
+		if let Some(w) = app.get_active_window() {
+			/* the first activate is from the program starting;
+			if we're in daemon mode, we should hide the window now */
+			if !daemon_.replace(false) {
+				w.present_with_time(0);
+			} else {
+				w.hide();
+			}
+		}
+	});
+
+	if !app.get_is_remote() {
+		app.hold();
+	}
+	std::process::exit(app.run(args));
 }

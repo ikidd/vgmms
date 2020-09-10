@@ -449,9 +449,12 @@ fn main() {
 
 	/* handle command-line arguments */
 	let daemon_ = daemon.clone();
-	app.connect_handle_local_options(move |_app, args_dict| {
+	app.connect_handle_local_options(move |app, args_dict| {
 		if let Some(daemon_arg) = args_dict.lookup_value("daemon", Some(glib::VariantTy::new("b").unwrap())) {
 			if daemon_arg.get::<bool>().unwrap() {
+				if app.get_is_remote() {
+					std::process::exit(0);
+				}
 				daemon_.replace(true);
 			}
 		}

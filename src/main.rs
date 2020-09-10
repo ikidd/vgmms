@@ -440,7 +440,7 @@ fn main() {
 	);
 
 	/* add options */
-	app.add_main_option("daemon", glib::Char('d' as i8), glib::OptionFlags::NONE, glib::OptionArg::None,
+	app.add_main_option("daemon", glib::Char::new('d').unwrap(), glib::OptionFlags::NONE, glib::OptionArg::None,
 		"run in the background without opening a window",
 		None);
 	

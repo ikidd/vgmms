@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=vgmms (daemon)
+Comment=SMS+MMS messaging client (daemon mode)
+Keywords=Messaging;SMS;MMS;
+Icon=user-available
+TryExec=vgmms
+Exec=vgmms --daemon
+StartupNotify=true
+Terminal=false
+Categories=GTK;Communication;
+X-GNOME-AutoRestart=true
+NoDisplay=true
+

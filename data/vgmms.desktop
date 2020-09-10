@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Vgmms
+Comment=SMS+MMS messaging client
+Keywords=Messaging;SMS;MMS;
+Icon=user-available
+TryExec=vgmms
+Exec=vgmms
+StartupNotify=true
+Terminal=false
+Categories=GTK;Communication;
+MimeType=x-scheme-handler/sms
+

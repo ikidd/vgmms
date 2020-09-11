@@ -15,6 +15,7 @@ pub struct InputBoxModel {
 	pub file_paths: Vec<PathBuf>,
 	pub message: String,
 	pub on_send: Callback<Vec<DraftItem>>,
+	pub message_typed: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -37,7 +38,13 @@ impl Component for InputBoxModel {
 		props
 	}
 
-	fn change(&mut self, props: Self) -> UpdateAction<Self> {
+	fn change(&mut self, mut props: Self) -> UpdateAction<Self> {
+		/* preserve message/attachments if self.message_typed */
+		if self.message_typed {
+			std::mem::swap(&mut props.file_paths, &mut self.file_paths);
+			std::mem::swap(&mut props.message, &mut self.message);
+			props.message_typed = true;
+		}
 		*self = props;
 		UpdateAction::Render
 	}
@@ -77,6 +84,7 @@ impl Component for InputBoxModel {
 			},
 			TextChanged(s) => {
 				self.message = s;
+				self.message_typed = true;
 				UpdateAction::None
 			},
 			AskForFile => {

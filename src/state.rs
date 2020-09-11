@@ -176,12 +176,12 @@ impl VgmmsState {
 						}
 					}
 
-					let id = self.next_attachment_id();
 					let att = Attachment {
 						name: OsString::from(att.name),
 						mime_type: att.mime_type,
 						data: (att.disk_path, att.start, att.len),
 					};
+					let id = self.next_attachment_id();
 					if let Err(e) = db::insert_attachment(&mut self.db_conn, &id, &att) {
 						eprintln!("error saving attachment: {}", e);
 					}

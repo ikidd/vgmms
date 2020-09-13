@@ -24,7 +24,6 @@ pub enum UiMessage {
 	TextChanged(String),
 	ToggleFile,
 	AskForFile,
-	AddFile(PathBuf),
 	SetFiles(Vec<PathBuf>),
 	Clear,
 	Nop,
@@ -113,10 +112,6 @@ impl Component for InputBox {
 
 				UpdateAction::Defer(Box::pin(fut))
 			}
-			AddFile(path) => {
-				self.file_paths.push(path);
-				UpdateAction::Render
-			},
 			SetFiles(paths) => {
 				self.file_paths = paths;
 				UpdateAction::Render

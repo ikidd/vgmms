@@ -39,6 +39,35 @@ The existing [messaging stacks for linux](https://sr.ht/~anteater/mms-stack/) ar
 2. while the former two services are running, run `vgmms`
 3. if you have trouble (or don't), [please submit a bug (or success) report](https://todo.sr.ht/~anteater/mms-stack-bugs)!
 
+## DBus interface
+
+vgmms exposes a `GtkAction` DBus interface, which can communicate with a running instance:
+
+- list available operations
+    ```
+    $ gdbus call -e -d org.vgmms -o /org/vgmms -m org.gtk.Actions.List
+    ```
+- open the new tab dialog
+    ```
+    $ gdbus call -e -d org.vgmms -o /org/vgmms -m org.gtk.Actions.Activate new-tab [] []
+    ```
+- open a chat with a given list of numbers
+    ```
+    $ gdbus call -e -d org.vgmms -o /org/vgmms -m org.gtk.Actions.Activate open-chat '[<"12345">]' []
+    ```
+- close the current tab
+    ```
+    $ gdbus call -e -d org.vgmms -o /org/vgmms -m org.gtk.Actions.Activate close-tab [] []
+    ```
+- exit vgmms
+    ```
+    $ gdbus call -e -d org.vgmms -o /org/vgmms -m org.gtk.Actions.Activate exit [] []
+    ```
+- save an attachment given its (vgmms internal) id
+    ```
+    $ gdbus call -e -d org.vgmms -o /org/vgmms -m org.gtk.Actions.Activate save-attachment-dialog '[<uint64 1>]' []
+    ```
+
 ## known bugs
 
 - lots, since things are still in-development

@@ -9,9 +9,9 @@ use std::sync::{Arc, RwLock};
 use std::boxed::Box;
 
 use crate::types::*;
-use crate::chat::*;
 
-use crate::{select_chat, db, new_chat, once, file_chooser, dbus};
+use crate::{chat_log, file_chooser, new_chat, select_chat};
+use crate::{db, dbus, once};
 
 #[derive(Clone, Default)]
 pub struct WindowModel {
@@ -375,7 +375,7 @@ impl Component for WindowModel {
 										<EventBox Notebook::tab_expand=true
 											Notebook::tab_label=c.get_name(&my_number)
 											widget_name=c.get_name(&my_number)>
-											<@ChatModel
+											<@chat_log::ChatLog
 												chat=c
 												state=self.state.clone()
 												on send=|c_drafts| UiMessage::Send(c_drafts)

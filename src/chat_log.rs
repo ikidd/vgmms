@@ -9,17 +9,17 @@ use std::default::Default;
 
 use std::sync::{Arc, RwLock};
 use crate::types::*;
-use crate::input_box::*;
+use crate::input_box::InputBox;
 
 #[derive(Clone, Default)]
-pub struct ChatModel {
+pub struct ChatLog {
 	pub state: Arc<RwLock<VgmmsState>>,
 	pub on_send: Callback<(Chat, Vec<DraftItem>)>,
 	pub chat: Chat,
 }
 
 #[derive(Clone, Debug)]
-pub enum UiMessageChat {
+pub enum UiMessage {
 	Send(Vec<DraftItem>),
 	AskDelete(MessageId),
 	Delete(MessageId),
@@ -106,7 +106,7 @@ fn image_widget<T: Component>(pixbuf: Pixbuf, halign: gtk::Align) -> VNode<T> {
 	gtk! { <Image pixbuf=Some(pixbuf) halign=halign /> }
 }
 
-impl ChatModel {
+impl ChatLog {
 	fn generate_log_widgets<'a>(&'a self, state: &'a VgmmsState) -> impl Iterator<Item=VNode<Self>> + 'a {
 		state.messages.iter().filter_map(move |(msg_id, msg)| {
 			if msg.chat != self.chat.numbers {
@@ -158,7 +158,7 @@ impl ChatModel {
 
 										let menu = Menu::from_model(&img_menu);
 										set_long_press_rightclick_menu(eb, menu);
-										UiMessageChat::Nop
+										UiMessage::Nop
 										}>{image}</EventBox>
 									}
 								},
@@ -187,8 +187,8 @@ impl ChatModel {
 	}
 }
 
-impl Component for ChatModel {
-	type Message = UiMessageChat;
+impl Component for ChatLog {
+	type Message = UiMessage;
 	type Properties = Self;
 
 	fn create(props: Self) -> Self {
@@ -201,7 +201,7 @@ impl Component for ChatModel {
 	}
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
-		use UiMessageChat::*;
+		use UiMessage::*;
 		match msg {
 			Send(draft_items) => {
 				self.on_send.send((self.chat.clone(), draft_items));
@@ -219,7 +219,7 @@ impl Component for ChatModel {
 		}
 	}
 
-	fn view(&self) -> VNode<ChatModel> {
+	fn view(&self) -> VNode<ChatLog> {
 		let state = self.state.read().unwrap();
 		fn keep_scrolled_to_bottom(sw: &ScrolledWindow) {
 			if let Some(adj) = sw.get_vadjustment() {
@@ -230,13 +230,13 @@ impl Component for ChatModel {
 		}
 		gtk! {
 			<GtkBox::new(Orientation::Vertical, 0)>
-				<ScrolledWindow GtkBox::expand=true on map=|sw| { keep_scrolled_to_bottom(sw); UiMessageChat::Nop} >
+				<ScrolledWindow GtkBox::expand=true on map=|sw| { keep_scrolled_to_bottom(sw); UiMessage::Nop} >
 					<ListBox> //TODO: TreeView
 					{self.generate_log_widgets(&*state)}
 					</ListBox>
 				</ScrolledWindow>
-				<@InputBoxModel
-					on send=|draft| UiMessageChat::Send(draft)
+				<@InputBox
+					on send=|draft| UiMessage::Send(draft)
 				/>
 			</GtkBox>
 		}

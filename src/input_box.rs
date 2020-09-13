@@ -11,7 +11,7 @@ use crate::once;
 use crate::types::*;
 
 #[derive(Clone, Default)]
-pub struct InputBoxModel {
+pub struct InputBox {
 	pub file_paths: Vec<PathBuf>,
 	pub message: String,
 	pub on_send: Callback<Vec<DraftItem>>,
@@ -19,7 +19,7 @@ pub struct InputBoxModel {
 }
 
 #[derive(Clone, Debug)]
-pub enum UiMessageInputBox {
+pub enum UiMessage {
 	Send,
 	TextChanged(String),
 	ToggleFile,
@@ -30,8 +30,8 @@ pub enum UiMessageInputBox {
 	Nop,
 }
 
-impl Component for InputBoxModel {
-	type Message = UiMessageInputBox;
+impl Component for InputBox {
+	type Message = UiMessage;
 	type Properties = Self;
 
 	fn create(props: Self) -> Self {
@@ -50,9 +50,9 @@ impl Component for InputBoxModel {
 	}
 
 	fn update(&mut self, mut msg: Self::Message) -> UpdateAction<Self> {
-		use UiMessageInputBox::*;
+		use UiMessage::*;
 		if let ToggleFile = msg {
-			msg = if self.file_paths.len() == 0 { UiMessageInputBox::AskForFile } else { UiMessageInputBox::Clear };
+			msg = if self.file_paths.len() == 0 { UiMessage::AskForFile } else { UiMessage::Clear };
 		}
 		match msg {
 			Send => {
@@ -137,25 +137,25 @@ impl Component for InputBoxModel {
 		gtk! {
 			<GtkBox::new(Orientation::Horizontal, 0)>
 				/*<Button label="" image="mail-attachment" always_show_image=true
-					on clicked=|_entry| UiMessageInputBox::AskForFile
+					on clicked=|_entry| UiMessage::AskForFile
 				/>*/
 				/*<Button label="" image="edit-clear" /*visible={self.file_paths.len() > 0}*/ always_show_image=true
-					on clicked=|_entry| UiMessageInputBox::ClearFiles
+					on clicked=|_entry| UiMessage::ClearFiles
 				/>*/
 				<Entry
 					text=self.message.clone()
 					GtkBox::expand=true
 					property_secondary_icon_name={if files_empty { "mail-attachment" } else { "edit-clear" }}
-					on icon_press=|_entry, _pos, _ev| UiMessageInputBox::ToggleFile
-					on realize=|entry| { entry.grab_focus(); UiMessageInputBox::Nop }
+					on icon_press=|_entry, _pos, _ev| UiMessage::ToggleFile
+					on realize=|entry| { entry.grab_focus(); UiMessage::Nop }
 					on changed=|entry| {
 						let text = entry.get_text().to_string();
-						UiMessageInputBox::TextChanged(text)
+						UiMessage::TextChanged(text)
 					}
-					on activate=|_| UiMessageInputBox::Send
+					on activate=|_| UiMessage::Send
 				/>
 				<Button label="" image="go-next" always_show_image=true
-					on clicked=|_| UiMessageInputBox::Send
+					on clicked=|_| UiMessage::Send
 				/>
 			</GtkBox>
 		}

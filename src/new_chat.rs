@@ -27,7 +27,7 @@ impl NewChat {
 }
 
 #[derive(Clone, Debug)]
-pub enum UiMessageNewChat {
+pub enum UiMessage {
 	Add,
 	Remove(usize),
 	NumChanged(String),
@@ -52,7 +52,7 @@ fn find_ancestor<W: glib::IsA<Widget>, A: glib::IsA<Widget>>(w: &W) -> Option<A>
 }
 
 impl Component for NewChat {
-	type Message = UiMessageNewChat;
+	type Message = UiMessage;
 	type Properties = Self;
 
 	fn create(props: Self) -> Self {
@@ -65,7 +65,7 @@ impl Component for NewChat {
 	}
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
-		use UiMessageNewChat::*;
+		use UiMessage::*;
 		match msg {
 			NumChanged(num) => {
 				self.partial_num = num;
@@ -113,7 +113,7 @@ impl Component for NewChat {
 				<Button::from_icon_name(Some("list-remove"), IconSize::Menu)
 					Grid::left=1 Grid::top={i as i32}
 					relief=ReliefStyle::None
-					on clicked=|_| UiMessageNewChat::Remove(i) />
+					on clicked=|_| UiMessage::Remove(i) />
 			},
 			].into_iter()
 		}
@@ -128,7 +128,7 @@ impl Component for NewChat {
 				default_height=300
 			>
 				<GtkBox::new(Orientation::Vertical, 0)
-					on parent_set=|w, _old| { set_expand_fill(w); UiMessageNewChat::Nop }
+					on parent_set=|w, _old| { set_expand_fill(w); UiMessage::Nop }
 				>
 					{
 						let number_widgets = self.numbers.iter().enumerate()
@@ -150,22 +150,22 @@ impl Component for NewChat {
 							input_purpose=InputPurpose::Phone
 							on changed=|entry| {
 								let text = entry.get_text().to_string();
-								UiMessageNewChat::NumChanged(text)
+								UiMessage::NumChanged(text)
 							}
-							on activate=|_| UiMessageNewChat::Add
+							on activate=|_| UiMessage::Add
 							property_secondary_icon_name={if can_add {"list-add"} else {"input-dialpad"}}
 							property_secondary_icon_activatable=can_add
-							on icon_press=|_, _, _| UiMessageNewChat::Add
-							on realize=|entry| { entry.grab_focus(); UiMessageNewChat::Nop }
+							on icon_press=|_, _, _| UiMessage::Add
+							on realize=|entry| { entry.grab_focus(); UiMessage::Nop }
 						/>
 					</GtkBox>
 					/* buttons for the dialog */
 					<GtkBox::new(Orientation::Horizontal, 0) homogeneous=true >
 						<Button::from_icon_name(Some("gtk-cancel"), IconSize::Button) label="_Cancel" use_underline=true
-							on clicked=|w| { find_ancestor::<_, Dialog>(w).unwrap().response(ResponseType::Cancel); UiMessageNewChat::Nop }
+							on clicked=|w| { find_ancestor::<_, Dialog>(w).unwrap().response(ResponseType::Cancel); UiMessage::Nop }
 						/>
 						<Button::from_icon_name(Some("gtk-open"), IconSize::Button) label="_Open" use_underline=true sensitive=can_open
-							on clicked=|w| { find_ancestor::<_, Dialog>(w).unwrap().response(ResponseType::Accept); UiMessageNewChat::Nop }
+							on clicked=|w| { find_ancestor::<_, Dialog>(w).unwrap().response(ResponseType::Accept); UiMessage::Nop }
 						/>
 					</GtkBox>
 				</GtkBox>

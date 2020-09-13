@@ -16,12 +16,12 @@ pub struct FileChooser {
 }
 
 #[derive(Clone, Debug)]
-pub enum UiMessageFileChooser {
+pub enum UiMessage {
 	Choose(Vec<PathBuf>),
 }
 
 impl Component for FileChooser {
-	type Message = UiMessageFileChooser;
+	type Message = UiMessage;
 	type Properties = Self;
 
 	fn create(props: Self) -> Self {
@@ -35,7 +35,7 @@ impl Component for FileChooser {
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
 		match msg {
-		    UiMessageFileChooser::Choose(fns) => self.on_choose.send(fns),
+		    UiMessage::Choose(fns) => self.on_choose.send(fns),
 		}
 		UpdateAction::None
 	}
@@ -56,7 +56,7 @@ impl Component for FileChooser {
 					chooser
 				})
 				select_multiple=select_multiple
-				on response=|chooser, _resp| UiMessageFileChooser::Choose(chooser.get_filenames())
+				on response=|chooser, _resp| UiMessage::Choose(chooser.get_filenames())
 			/>
 		}
 	}

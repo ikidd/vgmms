@@ -16,14 +16,14 @@ pub struct SelectChat {
 }
 
 #[derive(Clone, Debug)]
-pub enum UiMessageSelectChat {
+pub enum UiMessage {
 	SelectionChanged(usize),
 	NewChat,
 	Nop,
 }
 
 impl Component for SelectChat {
-	type Message = UiMessageSelectChat;
+	type Message = UiMessage;
 	type Properties = Self;
 
 	fn create(props: Self) -> Self {
@@ -36,7 +36,7 @@ impl Component for SelectChat {
 	}
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
-		use UiMessageSelectChat::*;
+		use UiMessage::*;
 		match msg {
 			SelectionChanged(chat_idx) => {
 				let nums = match self.chats_summaries.iter().nth(chat_idx) {
@@ -90,9 +90,9 @@ impl Component for SelectChat {
 		}
 		gtk! {
 			<GtkBox::new(Orientation::Vertical, 0)
-				on parent_set=|w, _old| { set_expand_fill(w); UiMessageSelectChat::Nop }>
+				on parent_set=|w, _old| { set_expand_fill(w); UiMessage::Nop }>
 				<GtkBox::new(Orientation::Horizontal, 0)>
-					<Button::from_icon_name(Some("add"), IconSize::Menu) on clicked=|_| UiMessageSelectChat::NewChat />
+					<Button::from_icon_name(Some("add"), IconSize::Menu) on clicked=|_| UiMessage::NewChat />
 				</GtkBox>
 				{
 					let chat_widgets = self.chats_summaries.iter().map(
@@ -101,7 +101,7 @@ impl Component for SelectChat {
 					if self.chats_summaries.len() > 0 { gtk! {
 						<ScrolledWindow GtkBox::fill=true GtkBox::expand=true>
 							<ListBox
-								on row_activated=|_box, row| UiMessageSelectChat::SelectionChanged(row.get_index() as usize)
+								on row_activated=|_box, row| UiMessage::SelectionChanged(row.get_index() as usize)
 							>
 							{chat_widgets}
 							</ListBox>
@@ -127,13 +127,13 @@ pub struct SelectChatDialog {
 }
 
 #[derive(Clone, Debug)]
-pub enum UiMessageSelectChatDialog {
+pub enum UiMessageDialog {
 	Selected(Vec<Number>),
 	NewChat,
 }
 
 impl Component for SelectChatDialog {
-	type Message = UiMessageSelectChatDialog;
+	type Message = UiMessageDialog;
 	type Properties = Self;
 
 	fn create(props: Self) -> Self {
@@ -146,7 +146,7 @@ impl Component for SelectChatDialog {
 	}
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
-		use UiMessageSelectChatDialog::*;
+		use UiMessageDialog::*;
 		match msg {
 			Selected(nums) => {
 				*self.numbers_shared.lock().unwrap() = nums;
@@ -171,8 +171,8 @@ impl Component for SelectChatDialog {
 				<@SelectChat
 					my_number=self.my_number.clone()
 					chats_summaries=self.chats_summaries.clone()
-					on select=|nums| {UiMessageSelectChatDialog::Selected(nums)}
-					on new_chat=|_| {UiMessageSelectChatDialog::NewChat}
+					on select=|nums| {UiMessageDialog::Selected(nums)}
+					on new_chat=|_| {UiMessageDialog::NewChat}
 				/>
 			</Dialog>
 		}

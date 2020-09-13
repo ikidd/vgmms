@@ -8,7 +8,7 @@ use vgtk::lib::gtk::*;
 use vgtk::lib::glib;
 
 /* widgets */
-mod chat;
+mod chat_log;
 mod file_chooser;
 mod input_box;
 mod new_chat;

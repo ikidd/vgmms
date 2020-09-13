@@ -18,7 +18,6 @@ pub struct FileChooser {
 #[derive(Clone, Debug)]
 pub enum UiMessageFileChooser {
 	Choose(Vec<PathBuf>),
-	Nop,
 }
 
 impl Component for FileChooser {
@@ -35,9 +34,9 @@ impl Component for FileChooser {
 	}
 
 	fn update(&mut self, msg: Self::Message) -> UpdateAction<Self> {
-		if let UiMessageFileChooser::Choose(fns) = msg {
-			self.on_choose.send(fns);
-		};
+		match msg {
+		    UiMessageFileChooser::Choose(fns) => self.on_choose.send(fns),
+		}
 		UpdateAction::None
 	}
 

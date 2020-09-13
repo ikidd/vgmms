@@ -34,9 +34,6 @@ impl Number {
 	pub fn new(n: u64) -> Self {
 		Number { num: n }
 	}
-	pub fn same(&self, other: &str) -> bool {
-		other == self.to_string()
-	}
 
 	pub fn to_string(&self) -> String {
 		self.num.to_string()
